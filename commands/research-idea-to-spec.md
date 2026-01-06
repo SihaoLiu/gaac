@@ -50,9 +50,11 @@ If input is text:
 Get docs paths from gaac.md configuration:
 
 ```bash
-DOCS_ROOT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" list "gaac.docs_paths" | head -1)
+# Use gaac-config.sh helpers to get correct paths (avoids duplication like docs/draft/draft)
+DOCS_ROOT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" docs-base _)
 DOCS_ROOT="${DOCS_ROOT:-docs}"
-DRAFT_DIR="${DOCS_ROOT}/draft"
+DRAFT_DIR=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" draft-dir _)
+DRAFT_DIR="${DRAFT_DIR:-${DOCS_ROOT}/draft}"
 mkdir -p "$(pwd)/${DRAFT_DIR}"
 ```
 

@@ -12,8 +12,8 @@ These keys are parsed by GAAC scripts. Keep the `gaac.*:` prefix intact.
 gaac.repo_url: <git@github.com:org/repo.git or https://github.com/org/repo>
 gaac.project_url: <https://github.com/orgs/ORG/projects/N or https://github.com/users/USER/projects/N>
 gaac.tags.l1: [Core][API][UI][Infra][Docs][Tests]
-gaac.tags.l2: [Auth][Data][Cache][Forms]
-gaac.tags.l3: [Web][CLI][Mobile][SDK]
+gaac.tags.l2: [Auth][Data][Cache][Forms][Users][Settings]
+gaac.tags.l3: [OAuth][JWT][Profile][Validation]
 gaac.docs_paths: docs, docs/architecture, docs/draft
 gaac.quick_test: <command to run fast local tests>
 gaac.quick_build: <command to run fast local build>
@@ -34,13 +34,37 @@ gaac.default_branch: main
 
 ## Tag System
 
-GAAC uses a three-level tagging system for organizing issues and PRs: `[L1:Area][L2:SubArea][L3:App]`
+GAAC uses a flexible three-level tagging system for organizing issues, commits, and PRs.
 
-- **L1 (Area/Component)**: Major functional areas (Core, API, UI, etc.)
-- **L2 (SubArea)**: Specific subsystems within L1 (Auth, Data, Cache, etc.)
-- **L3 (App/Surface)**: Application or surface area (Web, CLI, Mobile, SDK, etc.)
+### Tag Format
 
-Note: `[Issue #N]` appears in PR titles AFTER the L-tags, not as part of the tag system.
+Tags use a hierarchical structure: `[L1][L2][L3]`
+
+- **L1 (Component)**: Primary component or major area
+- **L2 (SubArea)**: Feature area within the L1 component
+- **L3 (SubSubArea)**: Specific focus within L2 (optional)
+
+### Allowed Tag Combinations
+
+| Format | Example | Use Case |
+|--------|---------|----------|
+| `[L1]` | `[Core] Add utility` | Single component |
+| `[L1][L2]` | `[Core][Auth] Add login` | Component + feature |
+| `[L1][L2][L3]` | `[Core][Auth][OAuth] Add provider` | Full hierarchy |
+
+### Constraint
+
+**NOT ALLOWED**: `[L1][L3]` without L2 (SubSubArea requires SubArea, just as L2 requires L1)
+
+### Issue Reference Tags
+
+Issue/PR references (`[Issue #N]`, `[PR #N]`) appear AFTER the L-tags, not as part of the tag hierarchy:
+
+| Context | Format | Example |
+|---------|--------|---------|
+| **Issue title** | `[tags] Description` | `[Core][Auth] Add OAuth support` |
+| **Commit** | `[tags] Description` or `[tags][Issue #N] Description` | `[Core][Auth][Issue #42] Add login` |
+| **PR title** | `[tags][Issue #N] Description` (mandatory) | `[Core][Auth][Issue #42] Add OAuth support` |
 
 ### Level 1 Tags (Area/Component)
 
@@ -69,19 +93,21 @@ Example for `[Core]`:
 **Your L2 Tags**:
 - [ ] Define your L2 tags here
 
-### Level 3 Tags (App/Surface)
+### Level 3 Tags (SubSubArea)
 
-Define application or surface area tags. These identify which user-facing component the change affects.
+Define L3 tags as specific focuses within your L2 areas. L3 is optional and provides additional granularity when needed.
 
-Example tags:
-- `[Web]` - Web application
-- `[CLI]` - Command-line interface
-- `[Mobile]` - Mobile app
-- `[SDK]` - Client SDK
-- `[Admin]` - Admin interface
+Example for `[Core][Auth]`:
+- `[Core][Auth][OAuth]` - OAuth-specific authentication
+- `[Core][Auth][JWT]` - JWT token handling
+- `[Core][Auth][SAML]` - SAML integration
+
+Example for `[API][Users]`:
+- `[API][Users][Profile]` - User profile endpoints
+- `[API][Users][Permissions]` - Permission management
 
 **Your L3 Tags**:
-- [ ] Define your L3 tags here
+- [ ] Define your L3 tags here (organized by L1/L2 parent)
 
 ### File-to-Tag Mapping
 

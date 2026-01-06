@@ -7,6 +7,11 @@
 set -euo pipefail
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+# Source portable timeout wrapper
+source "$PLUGIN_ROOT/scripts/portable-timeout.sh"
 
 # Parse arguments
 PROMPT_FILE=""
@@ -110,7 +115,7 @@ echo "Running $TOOL for analysis..."
 TIMEOUT="${CODEX_TIMEOUT:-600}"
 
 if [ "$TOOL" = "codex" ]; then
-    timeout "$TIMEOUT" codex exec \
+    run_with_timeout "$TIMEOUT" codex exec \
         -m gpt-5.2-codex \
         -c model_reasoning_effort=xhigh \
         --enable web_search_request \
@@ -122,7 +127,7 @@ if [ "$TOOL" = "codex" ]; then
     EXIT_CODE=$?
 else
     TIMEOUT="${CLAUDE_TIMEOUT:-300}"
-    timeout "$TIMEOUT" claude -p \
+    run_with_timeout "$TIMEOUT" claude -p \
         --model opus \
         --permission-mode bypassPermissions \
         --tools "Read,Grep,Glob,WebSearch,WebFetch" \
@@ -145,7 +150,7 @@ if [ $EXIT_CODE -ne 0 ]; then
     if [ "$TOOL" = "codex" ] && command -v claude &>/dev/null; then
         echo "Trying Claude fallback..."
         TOOL="claude"
-        timeout "${CLAUDE_TIMEOUT:-300}" claude -p \
+        run_with_timeout "${CLAUDE_TIMEOUT:-300}" claude -p \
             --model opus \
             --permission-mode bypassPermissions \
             --tools "Read,Grep,Glob,WebSearch,WebFetch" \

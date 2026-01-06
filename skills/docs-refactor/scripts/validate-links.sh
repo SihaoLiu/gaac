@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 CONFIG_HELPER="$PLUGIN_ROOT/scripts/gaac-config.sh"
 
-# Get docs paths from config (used if no explicit target specified)
+# Get docs paths from config
 get_docs_paths() {
     if [ -f "$CONFIG_HELPER" ]; then
         bash "$CONFIG_HELPER" list "gaac.docs_paths" 2>/dev/null || echo "docs"
@@ -23,7 +23,7 @@ get_docs_paths() {
 }
 
 # Parse arguments
-TARGET_DIR="${1:-$PROJECT_ROOT}"
+TARGET_DIR=""
 FIX_MODE=false
 
 while [[ $# -gt 0 ]]; do
@@ -39,9 +39,33 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Build list of directories to scan
+DOC_PATHS=()
+if [ -n "$TARGET_DIR" ]; then
+    # Explicit target specified
+    DOC_PATHS=("$TARGET_DIR")
+else
+    # Use configured docs paths
+    CUSTOM_PATHS=$(get_docs_paths)
+    if [ -n "$CUSTOM_PATHS" ]; then
+        while IFS= read -r path; do
+            path=$(echo "$path" | xargs)  # Trim whitespace
+            if [ -n "$path" ]; then
+                if [[ "$path" = /* ]]; then
+                    DOC_PATHS+=("$path")
+                else
+                    DOC_PATHS+=("$PROJECT_ROOT/$path")
+                fi
+            fi
+        done <<< "$CUSTOM_PATHS"
+    else
+        DOC_PATHS=("$PROJECT_ROOT/docs")
+    fi
+fi
+
 echo "=== Markdown Link Validator ==="
 echo ""
-echo "Scanning: $TARGET_DIR"
+echo "Scanning: ${DOC_PATHS[*]}"
 echo ""
 
 # Portable path normalization (works on macOS and Linux)
@@ -86,8 +110,9 @@ check_section() {
     return 1
 }
 
-# Find all markdown files
-while IFS= read -r -d '' file; do
+# Process markdown files in each configured path
+process_markdown_file() {
+    local file="$1"
     FILE_RELATIVE="${file#$PROJECT_ROOT/}"
     FILE_DIR=$(dirname "$file")
 
@@ -156,8 +181,24 @@ while IFS= read -r -d '' file; do
         VALID_LINKS=$((VALID_LINKS + 1))
 
     done < <(grep -oE '\[[^]]*\]\([^)]+\)' "$file" 2>/dev/null || true)
+}
 
-done < <(find "$TARGET_DIR" -name "*.md" -type f -print0 2>/dev/null)
+# Find all markdown files in configured doc paths
+for doc_path in "${DOC_PATHS[@]}"; do
+    # Skip if path doesn't exist
+    [ ! -e "$doc_path" ] && continue
+
+    # If it's a markdown file, process directly
+    if [ -f "$doc_path" ] && [[ "$doc_path" == *.md ]]; then
+        process_markdown_file "$doc_path"
+        continue
+    fi
+
+    # If it's a directory, find markdown files within
+    while IFS= read -r -d '' file; do
+        process_markdown_file "$file"
+    done < <(find "$doc_path" -name "*.md" -type f -print0 2>/dev/null)
+done
 
 # Report results
 echo "=== Results ==="

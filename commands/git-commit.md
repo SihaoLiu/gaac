@@ -55,21 +55,32 @@ git log --oneline -10
 
 ## Phase 2: Infer Tags
 
-### 2.1 L1 Tag Inference
+### Tag Hierarchy
+
+GAAC uses a flexible 3-level tag system: `[L1][L2][L3]`
+
+- **L1 (Component)**: Major area (Core, API, UI, etc.)
+- **L2 (SubArea)**: Feature within L1 (Auth, Data, Cache, etc.)
+- **L3 (SubSubArea)**: Specific focus within L2 (optional)
+
+Valid combinations: `[L1]`, `[L1][L2]`, `[L1][L2][L3]`
+Invalid: `[L1][L3]` (cannot skip L2)
+
+### 2.1 L1/L2 Tag Inference
 
 Based on changed file paths:
 
-| File Pattern | L1 Tag |
-|-------------|--------|
-| `docs/**`, `*.md` | `[Docs]` |
-| `tests/**`, `test/**`, `*_test.*` | `[Tests]` |
-| `src/api/**`, `api/**` | `[API]` |
-| `src/ui/**`, `ui/**`, `frontend/**` | `[UI]` |
-| `src/core/**`, `core/**`, `lib/**` | `[Core]` |
-| `.github/**`, `.claude/**`, `config/**` | `[Infra]` |
-| `build/**`, `scripts/**`, `Makefile` | `[Build]` |
+| File Pattern | L1 Tag | Common L2 Tags |
+|-------------|--------|----------------|
+| `docs/**`, `*.md` | `[Docs]` | `[API]`, `[Guide]` |
+| `tests/**`, `test/**`, `*_test.*` | `[Tests]` | `[Unit]`, `[E2E]` |
+| `src/api/**`, `api/**` | `[API]` | `[Users]`, `[Auth]` |
+| `src/ui/**`, `ui/**`, `frontend/**` | `[UI]` | `[Forms]`, `[Layout]` |
+| `src/core/**`, `core/**`, `lib/**` | `[Core]` | `[Auth]`, `[Data]` |
+| `.github/**`, `.claude/**`, `config/**` | `[Infra]` | `[CI]`, `[Config]` |
+| `build/**`, `scripts/**`, `Makefile` | `[Build]` | `[Scripts]` |
 
-If multiple patterns match, use the most specific or ask user.
+If multiple patterns match, use the most specific or ask user. L3 tags are optional and used for highly specific changes.
 
 ### 2.2 Issue Reference
 
@@ -85,12 +96,15 @@ Try to extract issue number from:
 ### 3.1 Format
 
 ```
-[L1][L2][#N] Short description
+[L1][L2] Short description        # No issue reference
+[L1][L2][Issue #N] Short description  # With issue reference
+[L1][L2][L3] Short description    # With L3 tag
+[L1][L2][L3][Issue #N] Short description  # Full format
 
 - Detail 1
 - Detail 2
 
-Issue: #N
+Issue: #N  (optional, in body)
 ```
 
 ### 3.2 Guidelines
@@ -180,11 +194,23 @@ git log -1 --format=full
 
 ## Examples
 
-### Simple commit
+### Simple commit (L1 + L2)
 ```
 /git-commit Fix null pointer in cache lookup
 ```
-Result: `[Core][Cache][#42] Fix null pointer in cache lookup`
+Result: `[Core][Cache] Fix null pointer in cache lookup`
+
+### With issue reference
+```
+/git-commit Fix null pointer in cache lookup
+```
+Result: `[Core][Cache][Issue #42] Fix null pointer in cache lookup`
+
+### With L3 tag (specific focus)
+```
+/git-commit Add OAuth token refresh logic
+```
+Result: `[Core][Auth][OAuth] Add token refresh logic`
 
 ### Documentation commit
 ```
@@ -196,7 +222,7 @@ Result: `[Docs][API] Update API reference`
 ```
 /git-commit
 ```
-Claude analyzes diff and proposes: `[UI][Forms][#15] Add validation to login form`
+Claude analyzes diff and proposes: `[UI][Forms][Issue #15] Add validation to login form`
 
 ---
 

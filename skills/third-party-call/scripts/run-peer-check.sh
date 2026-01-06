@@ -8,6 +8,10 @@ set -euo pipefail
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+# Source portable timeout wrapper
+source "$PLUGIN_ROOT/scripts/portable-timeout.sh"
 
 # Parse arguments
 ISSUE_NUMBER=""
@@ -129,8 +133,8 @@ echo "Running $TOOL for peer review..."
 TIMEOUT="${CODEX_TIMEOUT:-600}"
 
 if [ "$TOOL" = "codex" ]; then
-    # Run Codex
-    timeout "$TIMEOUT" codex exec \
+    # Run Codex with portable timeout
+    run_with_timeout "$TIMEOUT" codex exec \
         -m gpt-5.2-codex \
         -c model_reasoning_effort=xhigh \
         -s read-only \
@@ -140,9 +144,9 @@ if [ "$TOOL" = "codex" ]; then
 
     EXIT_CODE=$?
 else
-    # Run Claude
+    # Run Claude with portable timeout
     TIMEOUT="${CLAUDE_TIMEOUT:-300}"
-    timeout "$TIMEOUT" claude -p \
+    run_with_timeout "$TIMEOUT" claude -p \
         --model opus \
         --permission-mode bypassPermissions \
         --tools "Read,Grep,Glob" \

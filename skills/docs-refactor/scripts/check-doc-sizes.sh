@@ -61,6 +61,7 @@ fi
 
 echo "=== Document Size Report ==="
 echo ""
+echo "Docs paths: ${DOC_PATHS[*]}"
 echo "Thresholds: Warning > $WARN_THRESHOLD lines, Error > $ERROR_THRESHOLD lines"
 echo ""
 
@@ -68,23 +69,48 @@ TOTAL_DOCS=0
 WARN_DOCS=0
 ERROR_DOCS=0
 
-# Find all markdown files
-while IFS= read -r -d '' file; do
-    LINES=$(wc -l < "$file")
-    RELATIVE_PATH="${file#$PROJECT_ROOT/}"
-    TOTAL_DOCS=$((TOTAL_DOCS + 1))
+# Find all markdown files in configured doc paths
+for doc_path in "${DOC_PATHS[@]}"; do
+    TARGET_PATH="$PROJECT_ROOT/$doc_path"
 
-    if [ "$LINES" -gt "$ERROR_THRESHOLD" ]; then
-        echo -e "${RED}ERROR${NC}: $RELATIVE_PATH ($LINES lines) - MUST SPLIT"
-        ERROR_DOCS=$((ERROR_DOCS + 1))
-    elif [ "$LINES" -gt "$WARN_THRESHOLD" ]; then
-        echo -e "${YELLOW}WARN${NC}: $RELATIVE_PATH ($LINES lines) - Consider splitting"
-        WARN_DOCS=$((WARN_DOCS + 1))
-    else
-        echo -e "${GREEN}OK${NC}: $RELATIVE_PATH ($LINES lines)"
+    # Skip if path doesn't exist
+    [ ! -e "$TARGET_PATH" ] && continue
+
+    # If it's a file, check it directly
+    if [ -f "$TARGET_PATH" ]; then
+        LINES=$(wc -l < "$TARGET_PATH")
+        RELATIVE_PATH="${TARGET_PATH#$PROJECT_ROOT/}"
+        TOTAL_DOCS=$((TOTAL_DOCS + 1))
+
+        if [ "$LINES" -gt "$ERROR_THRESHOLD" ]; then
+            echo -e "${RED}ERROR${NC}: $RELATIVE_PATH ($LINES lines) - MUST SPLIT"
+            ERROR_DOCS=$((ERROR_DOCS + 1))
+        elif [ "$LINES" -gt "$WARN_THRESHOLD" ]; then
+            echo -e "${YELLOW}WARN${NC}: $RELATIVE_PATH ($LINES lines) - Consider splitting"
+            WARN_DOCS=$((WARN_DOCS + 1))
+        else
+            echo -e "${GREEN}OK${NC}: $RELATIVE_PATH ($LINES lines)"
+        fi
+        continue
     fi
-# Portable approach: limit file count without head -z (not available on macOS)
-done < <(find "$PROJECT_ROOT" \( -path "*/docs/*" -o -name "*.md" \) -name "*.md" -type f -print0 2>/dev/null)
+
+    # If it's a directory, find markdown files within
+    while IFS= read -r -d '' file; do
+        LINES=$(wc -l < "$file")
+        RELATIVE_PATH="${file#$PROJECT_ROOT/}"
+        TOTAL_DOCS=$((TOTAL_DOCS + 1))
+
+        if [ "$LINES" -gt "$ERROR_THRESHOLD" ]; then
+            echo -e "${RED}ERROR${NC}: $RELATIVE_PATH ($LINES lines) - MUST SPLIT"
+            ERROR_DOCS=$((ERROR_DOCS + 1))
+        elif [ "$LINES" -gt "$WARN_THRESHOLD" ]; then
+            echo -e "${YELLOW}WARN${NC}: $RELATIVE_PATH ($LINES lines) - Consider splitting"
+            WARN_DOCS=$((WARN_DOCS + 1))
+        else
+            echo -e "${GREEN}OK${NC}: $RELATIVE_PATH ($LINES lines)"
+        fi
+    done < <(find "$TARGET_PATH" -name "*.md" -type f -print0 2>/dev/null)
+done
 
 echo ""
 echo "=== Summary ==="

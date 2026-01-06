@@ -89,6 +89,96 @@ read_value() {
     echo "$line" | sed -E 's/^[^:]*:[[:space:]]*//' | sed -E 's/[[:space:]]+$//'
 }
 
+# Get docs paths as array
+get_docs_paths() {
+    local value
+    value=$(read_value "gaac.docs_paths")
+    if [ -z "$value" ]; then
+        echo "docs"
+        return
+    fi
+    echo "$value" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | sed '/^$/d'
+}
+
+# Find the base docs directory (the shortest path that's a parent of others)
+find_docs_base() {
+    local paths=()
+    while IFS= read -r p; do
+        [ -n "$p" ] && paths+=("$p")
+    done < <(get_docs_paths)
+
+    if [ ${#paths[@]} -eq 0 ]; then
+        echo "docs"
+        return
+    fi
+
+    # Find the shortest path that doesn't end with /draft or /architecture
+    local base=""
+    for p in "${paths[@]}"; do
+        if [[ ! "$p" =~ /draft$ ]] && [[ ! "$p" =~ /architecture$ ]] && [[ ! "$p" =~ /arch$ ]]; then
+            if [ -z "$base" ] || [ ${#p} -lt ${#base} ]; then
+                base="$p"
+            fi
+        fi
+    done
+
+    # If no suitable base found, extract from paths ending with /draft or /architecture
+    if [ -z "$base" ]; then
+        for p in "${paths[@]}"; do
+            local candidate="${p%/draft}"
+            candidate="${candidate%/architecture}"
+            candidate="${candidate%/arch}"
+            if [ -z "$base" ] || [ ${#candidate} -lt ${#base} ]; then
+                base="$candidate"
+            fi
+        done
+    fi
+
+    echo "${base:-docs}"
+}
+
+# Find or construct the draft directory
+find_draft_dir() {
+    local paths=()
+    while IFS= read -r p; do
+        [ -n "$p" ] && paths+=("$p")
+    done < <(get_docs_paths)
+
+    # Look for existing path ending with /draft
+    for p in "${paths[@]}"; do
+        if [[ "$p" =~ /draft$ ]] || [ "$p" = "draft" ]; then
+            echo "$p"
+            return
+        fi
+    done
+
+    # Not found, construct from base
+    local base
+    base=$(find_docs_base)
+    echo "${base}/draft"
+}
+
+# Find or construct the architecture directory
+find_arch_dir() {
+    local paths=()
+    while IFS= read -r p; do
+        [ -n "$p" ] && paths+=("$p")
+    done < <(get_docs_paths)
+
+    # Look for existing path ending with /architecture or /arch
+    for p in "${paths[@]}"; do
+        if [[ "$p" =~ /architecture$ ]] || [[ "$p" =~ /arch$ ]] || [ "$p" = "architecture" ]; then
+            echo "$p"
+            return
+        fi
+    done
+
+    # Not found, construct from base
+    local base
+    base=$(find_docs_base)
+    echo "${base}/architecture"
+}
+
 case "$COMMAND" in
     get)
         read_value "$KEY"
@@ -115,6 +205,15 @@ case "$COMMAND" in
             exit 0
         fi
         exit 1
+        ;;
+    docs-base)
+        find_docs_base
+        ;;
+    draft-dir)
+        find_draft_dir
+        ;;
+    arch-dir)
+        find_arch_dir
         ;;
     *)
         echo "Unknown command: $COMMAND" >&2

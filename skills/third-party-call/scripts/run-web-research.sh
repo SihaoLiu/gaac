@@ -7,6 +7,11 @@
 set -euo pipefail
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+# Source portable timeout wrapper
+source "$PLUGIN_ROOT/scripts/portable-timeout.sh"
 
 # Parse arguments
 TOPIC=""
@@ -125,9 +130,9 @@ echo "Running Gemini web research..."
 
 TIMEOUT="${GEMINI_TIMEOUT:-300}"
 
-# Run Gemini
+# Run Gemini with portable timeout
 GEMINI_CLI_SYSTEM_SETTINGS_PATH="$TEMP_SETTINGS" \
-timeout "$TIMEOUT" gemini \
+run_with_timeout "$TIMEOUT" gemini \
     --output-format json \
     --approval-mode yolo \
     "$PROMPT" > "${OUTPUT_FILE}.json" 2>/dev/null
