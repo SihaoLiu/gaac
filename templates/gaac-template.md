@@ -227,6 +227,19 @@ Maximum iterations for the review loop in `/work-on-issue`:
 
 **MAX_RALPH_WIGGUM_ITER**: `10` (default, can be overridden via environment variable)
 
+### Structured Markers (Stop Hook Detection)
+
+The GAAC Stop hook uses explicit XML/HTML markers for reliable detection. When working on issues, output these markers:
+
+| Marker | Format | When to Output |
+|--------|--------|----------------|
+| **Completion** | `<gaac-complete>WORK_ON_ISSUE_N_DONE</gaac-complete>` | When all criteria met |
+| **Review Score** | `<!-- GAAC_REVIEW_SCORE: NN -->` | After self-review |
+| **PR Created** | `<!-- GAAC_PR_CREATED: N -->` | After PR creation |
+| **Issue Found** | `<!-- GAAC_ISSUE: description -->` | To report specific issues |
+
+**Why markers?** Using explicit XML/HTML comments prevents accidental matches and ensures the Stop hook reliably detects completion signals.
+
 ### PR Size Guidelines
 
 - **Recommended**: < 300 lines changed

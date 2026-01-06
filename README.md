@@ -121,9 +121,23 @@ The `/work-on-issue` command includes Ralph-Wiggum style iteration for the revie
 4. Claude receives issues and continues fixing
 5. Loop until review passes or max iterations
 
-Configuration:
+### Configuration
+
 - `MAX_RALPH_WIGGUM_ITER` environment variable (default: 10)
-- Completion keyword: `WORK_ON_ISSUE_<N>_DONE`
+- Session isolation via `CLAUDE_SESSION_ID`
+
+### Structured Markers
+
+The Stop hook uses explicit markers for reliable detection:
+
+| Marker | Format | Purpose |
+|--------|--------|---------|
+| Completion | `<gaac-complete>KEYWORD</gaac-complete>` | Signal task complete |
+| Review Score | `<!-- GAAC_REVIEW_SCORE: NN -->` | Report self-review score |
+| PR Created | `<!-- GAAC_PR_CREATED: N -->` | Report PR number |
+| Issue | `<!-- GAAC_ISSUE: description -->` | Report specific issue |
+
+Example completion: `<gaac-complete>WORK_ON_ISSUE_42_DONE</gaac-complete>`
 
 ## Prerequisites
 

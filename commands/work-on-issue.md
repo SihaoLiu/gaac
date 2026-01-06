@@ -124,6 +124,7 @@ Create state file for Stop hook integration:
 mkdir -p "$CLAUDE_PROJECT_DIR/.claude"
 ISSUE_NUM="$1"
 MAX_ITER="${MAX_RALPH_WIGGUM_ITER:-10}"
+SESSION_ID="${CLAUDE_SESSION_ID:-$(date +%s)}"
 cat > "$CLAUDE_PROJECT_DIR/.claude/work-on-issue.state" << EOF
 ---
 active: true
@@ -132,12 +133,15 @@ phase: implementation
 review_iteration: 0
 max_iterations: ${MAX_ITER}
 completion_keyword: WORK_ON_ISSUE_${ISSUE_NUM}_DONE
+session_id: ${SESSION_ID}
 ---
 Work-on-issue state for #${ISSUE_NUM}
 EOF
 ```
 
 **IMPORTANT**: Variables MUST expand in the state file. Use double-quoted heredoc (`<< EOF`), NOT single-quoted (`<< 'EOF'`).
+
+**Session Isolation**: The `session_id` field ensures the Stop hook only affects this session, not other Claude Code sessions in the same project.
 
 ### 4.2 Implement Changes
 
@@ -220,6 +224,19 @@ Perform comprehensive review covering:
 - Performance implications
 
 Assign a score (0-100). Target: >= 81.
+
+**IMPORTANT**: Output the review score using structured marker for reliable detection:
+
+```
+<!-- GAAC_REVIEW_SCORE: 85 -->
+```
+
+If there are issues to fix, you can optionally output structured issue markers:
+
+```
+<!-- GAAC_ISSUE: Missing error handling in function X -->
+<!-- GAAC_ISSUE: Test coverage below 80% for module Y -->
+```
 
 ### 5.4 Review Result
 
@@ -305,6 +322,14 @@ Examples:
 
 If PR exists: Just push (PR updates automatically).
 
+**IMPORTANT**: After PR creation, output the structured marker for reliable detection:
+
+```
+<!-- GAAC_PR_CREATED: 123 -->
+```
+
+Replace `123` with the actual PR number returned by `gh pr create`.
+
 ---
 
 ## Phase 8: Completion
@@ -319,15 +344,17 @@ gh issue comment $1 --body "Implementation complete. PR: #<pr-number>"
 
 ### 8.2 Output Completion Keyword
 
-**IMPORTANT**: Output the completion keyword to signal the Stop hook:
+**IMPORTANT**: Output the completion keyword using XML tags to signal the Stop hook:
 
 ```
-WORK_ON_ISSUE_<issue-number>_DONE
+<gaac-complete>WORK_ON_ISSUE_<issue-number>_DONE</gaac-complete>
 ```
 
-For example, for issue #42, output: `WORK_ON_ISSUE_42_DONE`
+For example, for issue #42, output: `<gaac-complete>WORK_ON_ISSUE_42_DONE</gaac-complete>`
 
 This tells the Stop hook that the work is complete and allows normal exit.
+
+**Why XML tags?** Using explicit XML tags prevents accidental matches when the keyword appears in code, comments, or log output. The Stop hook uses Perl to reliably extract content from these tags.
 
 ### 8.3 Final Summary
 
@@ -350,23 +377,34 @@ This tells the Stop hook that the work is complete and allows normal exit.
 
 The `/work-on-issue` command integrates with the Stop hook to create automatic review iteration:
 
-1. State file tracks: issue number, current phase, iteration count
+1. State file tracks: issue number, current phase, iteration count, session ID
 2. During Phase 5, if review fails, attempting to exit triggers the hook
-3. Hook blocks exit and sends failure reason back
+3. Hook blocks exit and sends failure reason back with extracted issues
 4. Claude continues with fixes
 5. When review passes, completion keyword signals success
 6. Max iterations prevents infinite loops (default: 10)
 
+### Structured Markers for Reliable Detection
+
+The Stop hook recognizes these structured markers in your output:
+
+| Marker | Format | Purpose |
+|--------|--------|---------|
+| **Completion** | `<gaac-complete>KEYWORD</gaac-complete>` | Signal task complete |
+| **Review Score** | `<!-- GAAC_REVIEW_SCORE: NN -->` | Report self-review score |
+| **PR Created** | `<!-- GAAC_PR_CREATED: N -->` | Report PR number |
+| **Issue** | `<!-- GAAC_ISSUE: description -->` | Report specific issue |
+
 ### Completion Keyword
 
-The Stop hook looks for: `WORK_ON_ISSUE_<ISSUE_NUMBER>_DONE`
+The Stop hook looks for: `<gaac-complete>WORK_ON_ISSUE_<ISSUE_NUMBER>_DONE</gaac-complete>`
 
 Only output this when ALL of the following are true:
 - All acceptance criteria met
 - All tests pass
-- Self-review score >= 81
+- Self-review score >= 81 (output as `<!-- GAAC_REVIEW_SCORE: NN -->`)
 - Peer-check passed
-- PR created successfully
+- PR created successfully (output as `<!-- GAAC_PR_CREATED: N -->`)
 
 ---
 
@@ -376,4 +414,7 @@ Only output this when ALL of the following are true:
 - The Stop hook creates Ralph-Wiggum style iteration automatically
 - Size warnings at 600+ lines, but no automatic stop
 - Test-driven: write tests before implementation
-- Completion keyword is MANDATORY for proper exit
+- **Completion keyword MUST use XML tags**: `<gaac-complete>KEYWORD</gaac-complete>`
+- **Review score MUST use structured marker**: `<!-- GAAC_REVIEW_SCORE: NN -->`
+- **PR number MUST use structured marker**: `<!-- GAAC_PR_CREATED: N -->`
+- Session isolation prevents hook from affecting other Claude sessions in the same project

@@ -7,7 +7,8 @@
 # to continue the implementation/review loop.
 #
 # State file: .claude/work-on-issue.state
-# Completion keyword: WORK_ON_ISSUE_<N>_DONE
+# Completion format: <gaac-complete>WORK_ON_ISSUE_<N>_DONE</gaac-complete>
+# Review score format: <!-- GAAC_REVIEW_SCORE: NN -->
 #
 
 set -euo pipefail
@@ -42,6 +43,7 @@ PHASE=$(echo "$FRONTMATTER" | grep '^phase:' | sed 's/phase: *//' | tr -d ' ')
 ITERATION=$(echo "$FRONTMATTER" | grep '^review_iteration:' | sed 's/review_iteration: *//' | tr -d ' ')
 MAX_ITERATIONS=$(echo "$FRONTMATTER" | grep '^max_iterations:' | sed 's/max_iterations: *//' | tr -d ' ')
 COMPLETION_KEYWORD=$(echo "$FRONTMATTER" | grep '^completion_keyword:' | sed 's/completion_keyword: *//')
+SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//' | tr -d ' ')
 
 # Default values
 ITERATION="${ITERATION:-0}"
@@ -50,6 +52,14 @@ MAX_ITERATIONS="${MAX_ITERATIONS:-10}"
 # If not active, allow exit
 if [ "$ACTIVE" != "true" ]; then
     exit 0
+fi
+
+# Session isolation: check if this session matches (if session tracking enabled)
+if [ -n "$SESSION_ID" ] && [ -n "${CLAUDE_SESSION_ID:-}" ]; then
+    if [ "$SESSION_ID" != "$CLAUDE_SESSION_ID" ]; then
+        # Different session - allow exit without affecting state
+        exit 0
+    fi
 fi
 
 # Validate numeric fields
@@ -102,10 +112,21 @@ fi
 # Check Completion Criteria
 # ========================================
 
-# Check for completion keyword (e.g., WORK_ON_ISSUE_42_DONE)
+# Pattern 1: XML-tagged completion keyword (primary method)
+# Format: <gaac-complete>WORK_ON_ISSUE_42_DONE</gaac-complete>
 if [ -n "$COMPLETION_KEYWORD" ]; then
+    # Use Perl for reliable multiline XML tag extraction (same as official ralph-wiggum)
+    COMPLETION_TEXT=$(echo "$LAST_OUTPUT" | perl -0777 -pe 's/.*?<gaac-complete>(.*?)<\/gaac-complete>.*/$1/s; s/^\s+|\s+$//g; s/\s+/ /g' 2>/dev/null || echo "")
+
+    if [ -n "$COMPLETION_TEXT" ] && [ "$COMPLETION_TEXT" = "$COMPLETION_KEYWORD" ]; then
+        echo "GAAC: Completion detected: <gaac-complete>$COMPLETION_KEYWORD</gaac-complete>" >&2
+        rm -f "$STATE_FILE"
+        exit 0
+    fi
+
+    # Fallback: Also check for plain keyword (backwards compatibility)
     if echo "$LAST_OUTPUT" | grep -qF "$COMPLETION_KEYWORD"; then
-        echo "GAAC: Completion keyword detected: $COMPLETION_KEYWORD" >&2
+        echo "GAAC: Completion keyword detected (plain): $COMPLETION_KEYWORD" >&2
         rm -f "$STATE_FILE"
         exit 0
     fi
@@ -114,29 +135,48 @@ fi
 # Check for review passed markers
 REVIEW_PASSED=false
 
-# Pattern 1: Review score >= 81
+# Pattern 2: Structured review score marker (primary method)
+# Format: <!-- GAAC_REVIEW_SCORE: 85 -->
 REVIEW_SCORE=""
-if echo "$LAST_OUTPUT" | grep -qiE "score[:\s]*[0-9]+|review.*score|self-review"; then
-    REVIEW_SCORE=$(echo "$LAST_OUTPUT" | grep -oiE "score[:\s]*[0-9]+" | grep -oE "[0-9]+" | tail -1 || echo "")
+if echo "$LAST_OUTPUT" | grep -qE 'GAAC_REVIEW_SCORE:[[:space:]]*[0-9]+'; then
+    REVIEW_SCORE=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_REVIEW_SCORE:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | tail -1 || echo "")
+fi
+
+# Fallback: Try to extract from natural language (less reliable)
+if [ -z "$REVIEW_SCORE" ]; then
+    if echo "$LAST_OUTPUT" | grep -qiE "self-review.*score|review score|final score"; then
+        # More specific pattern to avoid false matches
+        REVIEW_SCORE=$(echo "$LAST_OUTPUT" | grep -iE "self-review.*score|review score|final score" | grep -oE '[0-9]+/100|score[[:space:]]*:?[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -1 || echo "")
+    fi
 fi
 
 if [ -n "$REVIEW_SCORE" ] && [ "$REVIEW_SCORE" -ge 81 ] 2>/dev/null; then
     # Also need to check if PR was created
-    if echo "$LAST_OUTPUT" | grep -qiE "pr.*created|created.*pr|pull request.*#[0-9]+"; then
+    if echo "$LAST_OUTPUT" | grep -qiE "pr.*created|created.*pr|pull request.*#[0-9]+|gh pr create.*success"; then
         REVIEW_PASSED=true
         echo "GAAC: Review passed (score $REVIEW_SCORE >= 81) and PR created" >&2
     fi
 fi
 
-# Pattern 2: Phase 6+ completed markers
-if echo "$LAST_OUTPUT" | grep -qiE "phase 6.*complete|phase 7|commit.*success|pushed.*remote"; then
+# Pattern 3: Structured PR created marker
+# Format: <!-- GAAC_PR_CREATED: 123 -->
+if echo "$LAST_OUTPUT" | grep -qE 'GAAC_PR_CREATED:[[:space:]]*[0-9]+'; then
+    PR_NUMBER=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_PR_CREATED:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | tail -1 || echo "")
+    if [ -n "$PR_NUMBER" ] && [ -n "$REVIEW_SCORE" ] && [ "$REVIEW_SCORE" -ge 81 ] 2>/dev/null; then
+        REVIEW_PASSED=true
+        echo "GAAC: Review passed (score $REVIEW_SCORE) with PR #$PR_NUMBER" >&2
+    fi
+fi
+
+# Pattern 4: Phase completion markers
+if echo "$LAST_OUTPUT" | grep -qiE "phase 6.*complete|phase 7.*complete|phase 8.*complete|commit.*success.*push|pushed.*remote.*success"; then
     REVIEW_PASSED=true
     echo "GAAC: Phase completion marker detected" >&2
 fi
 
-# Pattern 3: All acceptance criteria checked
+# Pattern 5: All acceptance criteria checked with tests passing
 if echo "$LAST_OUTPUT" | grep -qiE "all acceptance criteria.*met|acceptance criteria:.*\[x\].*\[x\]"; then
-    if echo "$LAST_OUTPUT" | grep -qiE "tests.*pass|all tests.*pass"; then
+    if echo "$LAST_OUTPUT" | grep -qiE "tests.*pass|all tests.*pass|test suite.*pass"; then
         REVIEW_PASSED=true
         echo "GAAC: Acceptance criteria and tests passed" >&2
     fi
@@ -154,64 +194,97 @@ fi
 
 NEXT_ITERATION=$((ITERATION + 1))
 
-# Extract issues from output
+# Extract issues from output using multiple patterns
 ISSUES=""
 
+# Check for structured GAAC issue markers first
+# Format: <!-- GAAC_ISSUE: description -->
+if echo "$LAST_OUTPUT" | grep -qE 'GAAC_ISSUE:'; then
+    STRUCTURED_ISSUES=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_ISSUE:[^>]+' | sed 's/GAAC_ISSUE:[[:space:]]*/- /' || echo "")
+    if [ -n "$STRUCTURED_ISSUES" ]; then
+        ISSUES="${ISSUES}
+
+### Identified Issues
+$STRUCTURED_ISSUES"
+    fi
+fi
+
 # Check for self-check failures
-if echo "$LAST_OUTPUT" | grep -qiE "self-check.*incomplete|incomplete.*status|\[ \]"; then
-    SELF_CHECK_ISSUES=$(echo "$LAST_OUTPUT" | grep -E "\[ \]|incomplete|TODO|FIXME" | head -10 || echo "")
+if echo "$LAST_OUTPUT" | grep -qiE "self-check.*incomplete|self-check.*fail|incomplete.*status|\[ \][[:space:]]*[A-Z]"; then
+    SELF_CHECK_ISSUES=$(echo "$LAST_OUTPUT" | grep -E "\[ \][[:space:]]+[A-Za-z]|self-check.*:.*incomplete|TODO:|FIXME:" | head -10 || echo "")
     if [ -n "$SELF_CHECK_ISSUES" ]; then
         ISSUES="${ISSUES}
 
 ### Self-Check Issues
-$SELF_CHECK_ISSUES"
+\`\`\`
+$SELF_CHECK_ISSUES
+\`\`\`"
     fi
 fi
 
 # Check for peer-check failures
-if echo "$LAST_OUTPUT" | grep -qiE "peer-check.*needs.work|NEEDS_WORK|peer.*review.*fail"; then
-    PEER_CHECK_ISSUES=$(echo "$LAST_OUTPUT" | grep -iA10 "peer-check\|NEEDS_WORK\|findings" | head -15 || echo "")
+if echo "$LAST_OUTPUT" | grep -qiE "peer-check.*needs.work|NEEDS_WORK|peer.*review.*fail|peer-check.*fail"; then
+    PEER_CHECK_ISSUES=$(echo "$LAST_OUTPUT" | grep -iA10 "peer-check\|NEEDS_WORK\|findings\|issues found" | head -15 || echo "")
     if [ -n "$PEER_CHECK_ISSUES" ]; then
         ISSUES="${ISSUES}
 
 ### Peer-Check Issues
-$PEER_CHECK_ISSUES"
+\`\`\`
+$PEER_CHECK_ISSUES
+\`\`\`"
     fi
 fi
 
 # Check for review score < 81
 if [ -n "$REVIEW_SCORE" ] && [ "$REVIEW_SCORE" -lt 81 ] 2>/dev/null; then
-    CODE_REVIEW_ISSUES=$(echo "$LAST_OUTPUT" | grep -iA15 "score\|review\|issues found" | head -20 || echo "")
+    CODE_REVIEW_ISSUES=$(echo "$LAST_OUTPUT" | grep -iA15 "review score\|self-review\|issues found\|improvements needed" | head -20 || echo "")
     ISSUES="${ISSUES}
 
 ### Review Score: $REVIEW_SCORE/100 (need >= 81)
-$CODE_REVIEW_ISSUES"
+\`\`\`
+$CODE_REVIEW_ISSUES
+\`\`\`"
 fi
 
 # Check for test failures
-if echo "$LAST_OUTPUT" | grep -qiE "test.*fail|failing.*test|error.*test"; then
-    TEST_ISSUES=$(echo "$LAST_OUTPUT" | grep -iA5 "test.*fail\|error" | head -10 || echo "")
+if echo "$LAST_OUTPUT" | grep -qiE "test.*fail|failing.*test|error.*test|tests?:[[:space:]]*[0-9]+[[:space:]]*fail"; then
+    TEST_ISSUES=$(echo "$LAST_OUTPUT" | grep -iB2 -A5 "test.*fail\|FAIL\|error.*test" | head -15 || echo "")
     if [ -n "$TEST_ISSUES" ]; then
         ISSUES="${ISSUES}
 
 ### Test Failures
-$TEST_ISSUES"
+\`\`\`
+$TEST_ISSUES
+\`\`\`"
     fi
 fi
 
-# If no specific issues found, use generic message
+# Check for build failures
+if echo "$LAST_OUTPUT" | grep -qiE "build.*fail|compile.*error|compilation.*fail"; then
+    BUILD_ISSUES=$(echo "$LAST_OUTPUT" | grep -iB2 -A5 "build.*fail\|compile.*error\|error:" | head -15 || echo "")
+    if [ -n "$BUILD_ISSUES" ]; then
+        ISSUES="${ISSUES}
+
+### Build Failures
+\`\`\`
+$BUILD_ISSUES
+\`\`\`"
+    fi
+fi
+
+# If no specific issues found, provide guidance
 if [ -z "$(echo "$ISSUES" | tr -d '[:space:]')" ]; then
     ISSUES="
 
-The implementation or review is not yet complete. Please ensure:
+No specific issues were extracted from the output. Please ensure:
 
 1. **Self-Check**: All acceptance criteria met, no TODOs left
 2. **Tests**: All tests pass
 3. **Peer-Check**: External review passed (PASS status)
-4. **Review Score**: Self-review score >= 81
-5. **PR**: Pull request created successfully
+4. **Review Score**: Self-review score >= 81 (output as \`<!-- GAAC_REVIEW_SCORE: NN -->\`)
+5. **PR**: Pull request created (output as \`<!-- GAAC_PR_CREATED: N -->\`)
 
-When complete, output: $COMPLETION_KEYWORD"
+When complete, output: \`<gaac-complete>$COMPLETION_KEYWORD</gaac-complete>\`"
 fi
 
 # Update iteration in state file
@@ -233,9 +306,9 @@ $ISSUES
 
 1. Fix the issues identified above
 2. Re-run the review checks (self-check → peer-check → self-review)
-3. Ensure review score >= 81
-4. Create PR if not yet created
-5. Output completion keyword when done: \`$COMPLETION_KEYWORD\`
+3. Output review score: \`<!-- GAAC_REVIEW_SCORE: NN -->\` (need >= 81)
+4. Create PR if not yet created, output: \`<!-- GAAC_PR_CREATED: N -->\`
+5. When ALL criteria met, output: \`<gaac-complete>$COMPLETION_KEYWORD</gaac-complete>\`
 
 ## Current Status
 
