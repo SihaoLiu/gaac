@@ -68,18 +68,20 @@ The `[Issue #N]` tag appears AFTER L-tags and links PRs/commits to their source 
 | **Commit** | `[L1][Issue #N]` (optional) | `[Core][Issue #42] Add login` |
 | **PR title** | `[L1][Issue #N]` (required) | `[Core][Auth][Issue #42] Add OAuth support` |
 
-### Multiple Issues
+### Multiple Issues (Rare Exception)
 
-When a PR resolves multiple issues, use comma-separated format:
+The default is one issue per PR. However, when issues have **chicken-egg dependencies** (e.g., implementing feature A requires feature B and vice versa), a single PR may resolve both:
 
 ```
-[L1][Issue #789,#456] Combined fix for caching and auth
+[L1][Issue #789,#456] Combined fix for interdependent features
 ```
 
-The PR body should contain separate `Resolves` lines for GitHub auto-linking:
+**Note**: L1 tag is still required. The PR body must contain separate `Resolves` lines:
 ```
 Resolves #789, resolves #456
 ```
+
+This does not violate the "one issue → one PR" principle; it's "multiple interdependent issues → one PR".
 
 ### Level 1 Tags (Area/Component)
 

@@ -140,9 +140,9 @@ Resolves #N
 Located at: `templates/commit-template.md`
 
 ```
-[L1][Issue #N] Short description        # L1 only + issue
-[L1][L2][Issue #N] Short description    # L1 + L2 + issue
-[Issue #789,#456] Short description     # Multiple issues
+[L1][Issue #N] Short description            # L1 + issue
+[L1][L2][Issue #N] Short description        # L1 + L2 + issue
+[L1][Issue #789,#456] Short description     # L1 + multiple issues (rare)
 
 - Detail 1
 - Detail 2
@@ -150,7 +150,7 @@ Located at: `templates/commit-template.md`
 Issue: #N
 ```
 
-Note: L2 is optional. For multiple issues, use `[Issue #789,#456]`
+Note: L1 is required, L2/L3 optional. Multi-issue `[Issue #N,#M]` is rare (chicken-egg dependencies only).
 
 ## Project Board Integration
 

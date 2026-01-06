@@ -73,15 +73,18 @@ Issue: #15
 Issue: #78
 ```
 
-### Multiple issues
+### Multiple issues (rare - chicken-egg dependencies only)
 ```
-[Core][Issue #42,#43] Refactor cache and error handling
+[Core][Issue #42,#43] Fix interdependent cache and error handling
 
 - Fix cache race condition (#42)
 - Standardize error codes (#43)
+- Both issues required each other's changes
 
 Issues: #42, #43
 ```
+
+Note: L1 tag is still required. Default is one issue per PR.
 
 ## Tag Inference
 

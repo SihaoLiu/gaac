@@ -59,14 +59,17 @@ Examples:
 - `[API][REST][Issue #15] Add rate limiting endpoint`
 - `[Core][Issue #42,#43] Fix caching and error handling`
 
-### Multiple Issues
+### Multiple Issues (Rare Exception)
 
-When a PR resolves multiple issues:
-- **Title**: `[L1][Issue #789,#456] Description`
+The default is **one issue per PR**. However, when issues have **chicken-egg dependencies** (implementing A requires B and vice versa), a single PR may resolve both:
+
+- **Title**: `[L1][Issue #789,#456] Description` (L1 still required)
 - **Body**: Must have separate resolves for GitHub auto-linking:
   ```
   Resolves #789, resolves #456
   ```
+
+This is rare and should only be used when issues are truly interdependent.
 
 ## Issue Body (SWE-bench Style)
 
