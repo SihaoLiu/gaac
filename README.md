@@ -18,23 +18,50 @@ This approach provides:
 
 ## Installation
 
-```bash
-# Install the plugin
-claude /plugin install /path/to/gaac
+### Option 1: Install from Git Marketplace (Recommended)
 
-# Or from git (when published)
-claude /plugin install SihaoLiu/gaac
+Start Claude Code and run the following commands:
+
+```bash
+# Add the marketplace
+/plugin marketplace add git@github.com:SihaoLiu/gaac.git
+
+# Install the plugin
+/plugin install gaac@gaac-marketplace
 ```
+
+### Option 2: Local Development / Testing
+
+If you have the plugin cloned locally:
+
+```bash
+# Start Claude Code with the plugin directory
+claude --plugin-dir /path/to/gaac
+```
+
+### Verify Installation
+
+Run `/plugin` in Claude Code and check the **Installed** tab to confirm the plugin is active.
 
 ## Configuration
 
-After installation, copy the template to your project:
+After installation, copy the configuration template to your project's `.claude/rules/` directory.
+
+### For Marketplace Installation
 
 ```bash
-cp path/to/gaac/templates/gaac-template.md .claude/rules/gaac.md
+cp ~/.claude/plugins/marketplaces/gaac-marketplace/templates/gaac-template.md .claude/rules/gaac.md
 ```
 
-Configure the following in `gaac.md`:
+### For Local Installation
+
+```bash
+cp /path/to/gaac/templates/gaac-template.md .claude/rules/gaac.md
+```
+
+### Configure gaac.md
+
+Edit `.claude/rules/gaac.md` and configure the following:
 - GitHub repository URL
 - GitHub project board URL
 - L1/L2 tag system for your project
