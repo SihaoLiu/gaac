@@ -223,11 +223,45 @@ elif [ "$TOOL" = "claude" ]; then
 
 elif [ "$TOOL" = "gemini" ]; then
     # Gemini support for proposer_secondary
+    # Create temporary settings file for read-only access (same security model as run-web-research.sh)
+    TEMP_SETTINGS=$(mktemp)
+    cat > "$TEMP_SETTINGS" << 'GEMINI_EOF'
+{
+  "tools": {
+    "core": ["list_directory", "read_file", "glob", "search_file_content", "web_fetch", "google_web_search"],
+    "allowed": ["list_directory", "read_file", "glob", "search_file_content", "web_fetch", "google_web_search"],
+    "exclude": ["write_file", "replace", "run_shell_command", "write_todos", "save_memory"]
+  },
+  "useSmartEdit": false,
+  "useWriteTodos": false
+}
+GEMINI_EOF
+
     TIMEOUT="${GEMINI_TIMEOUT:-300}"
+    GEMINI_CLI_SYSTEM_SETTINGS_PATH="$TEMP_SETTINGS" \
     run_with_timeout "$TIMEOUT" gemini \
         --model "${CONFIGURED_MODEL:-gemini-3-pro-preview}" \
-        < "$FULL_PROMPT_FILE" > "$OUTPUT_FILE" 2>/dev/null
+        --output-format json \
+        --approval-mode yolo \
+        "$FULL_PROMPT_FILE" > "${OUTPUT_FILE}.json" 2>/dev/null
     EXIT_CODE=$?
+
+    rm -f "$TEMP_SETTINGS"
+
+    # Extract response from JSON (same as run-web-research.sh)
+    if [ -f "${OUTPUT_FILE}.json" ]; then
+        if command -v jq &>/dev/null; then
+            jq -r '.response // .text // .content // .' "${OUTPUT_FILE}.json" > "$OUTPUT_FILE" 2>/dev/null || \
+                cat "${OUTPUT_FILE}.json" > "$OUTPUT_FILE"
+        elif command -v python3 &>/dev/null; then
+            python3 -c "import json, sys; d=json.load(sys.stdin); print(d.get('response', d.get('text', json.dumps(d))))" \
+                < "${OUTPUT_FILE}.json" > "$OUTPUT_FILE" 2>/dev/null || \
+                cat "${OUTPUT_FILE}.json" > "$OUTPUT_FILE"
+        else
+            cat "${OUTPUT_FILE}.json" > "$OUTPUT_FILE"
+        fi
+        rm -f "${OUTPUT_FILE}.json"
+    fi
 fi
 
 # Cleanup function to remove temp file
