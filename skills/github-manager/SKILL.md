@@ -140,13 +140,17 @@ Resolves #N
 Located at: `templates/commit-template.md`
 
 ```
-[L1][L2][#N] Short description
+[L1][Issue #N] Short description        # L1 only + issue
+[L1][L2][Issue #N] Short description    # L1 + L2 + issue
+[Issue #789,#456] Short description     # Multiple issues
 
 - Detail 1
 - Detail 2
 
 Issue: #N
 ```
+
+Note: L2 is optional. For multiple issues, use `[Issue #789,#456]`
 
 ## Project Board Integration
 

@@ -233,13 +233,17 @@ If too large, use docs-refactor skill to split.
 Create a tracking issue for this idea:
 
 ```bash
-# Use L1/L2 tags from gaac.md - [Research] is a label, not a title tag
 # Infer L1 from the idea topic (e.g., [Core], [API], [Docs], etc.)
+# L2 is optional - use only if there's a clear sub-area
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-issue.sh" \
-    --title "[L1][L2] <Idea Title>" \
+    --title "[L1] <Idea Title>" \
     --body-file "<generated issue body>" \
     --labels "research,draft,L1:Component"
 ```
+
+Examples:
+- `[Core] Add caching layer` (L1 only)
+- `[Core][Cache] Add Redis backend` (L1 + L2 when sub-area is clear)
 
 Issue body should include:
 - Brief summary of the idea

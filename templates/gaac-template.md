@@ -56,15 +56,30 @@ Tags use a hierarchical structure: `[L1][L2][L3]`
 
 **NOT ALLOWED**: `[L1][L3]` without L2 (SubSubArea requires SubArea, just as L2 requires L1)
 
-### Issue Reference Tags
+### Issue Reference in Titles
 
-Issue/PR references (`[Issue #N]`, `[PR #N]`) appear AFTER the L-tags, not as part of the tag hierarchy:
+The `[Issue #N]` tag appears AFTER L-tags and links PRs/commits to their source issue.
+
+**Purpose**: When a PR is merged, the issue number in the title becomes visible in git blame/file history, allowing direct navigation to the related issue.
 
 | Context | Format | Example |
 |---------|--------|---------|
-| **Issue title** | `[tags] Description` | `[Core][Auth] Add OAuth support` |
-| **Commit** | `[tags] Description` or `[tags][Issue #N] Description` | `[Core][Auth][Issue #42] Add login` |
-| **PR title** | `[tags][Issue #N] Description` (mandatory) | `[Core][Auth][Issue #42] Add OAuth support` |
+| **Issue title** | `[L1]` or `[L1][L2]` | `[Core][Auth] Add OAuth support` |
+| **Commit** | `[L1][Issue #N]` (optional) | `[Core][Issue #42] Add login` |
+| **PR title** | `[L1][Issue #N]` (required) | `[Core][Auth][Issue #42] Add OAuth support` |
+
+### Multiple Issues
+
+When a PR resolves multiple issues, use comma-separated format:
+
+```
+[L1][Issue #789,#456] Combined fix for caching and auth
+```
+
+The PR body should contain separate `Resolves` lines for GitHub auto-linking:
+```
+Resolves #789, resolves #456
+```
 
 ### Level 1 Tags (Area/Component)
 

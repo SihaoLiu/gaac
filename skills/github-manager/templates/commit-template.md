@@ -3,7 +3,12 @@
 ## Format
 
 ```
-[L1][L2][#N] Short description (50 chars max)
+[L1] Short description                      # L1 only
+[L1][L2] Short description                  # L1 + L2
+[L1][Issue #N] Short description            # L1 + issue ref
+[L1][L2][Issue #N] Short description        # L1 + L2 + issue ref
+[L1][L2][L3][Issue #N] Short description    # Full format
+[L1][Issue #789,#456] Short description     # Multiple issues
 
 - Detail point 1
 - Detail point 2
@@ -15,9 +20,11 @@ Issue: #N
 
 ### Tags
 
-- **L1 Tag**: Main component/area (e.g., `[Core]`, `[API]`, `[UI]`, `[Docs]`)
-- **L2 Tag**: Sub-area (optional, e.g., `[Auth]`, `[Cache]`, `[Forms]`)
-- **Issue Ref**: `[#N]` where N is the issue number
+- **L1 Tag**: Required - main component/area (e.g., `[Core]`, `[API]`, `[UI]`, `[Docs]`)
+- **L2 Tag**: Optional - sub-area within L1 (e.g., `[Auth]`, `[Cache]`, `[Forms]`)
+- **L3 Tag**: Optional - specific focus within L2
+- **Issue Ref**: `[Issue #N]` - optional for commits, required for PR titles
+- **Multiple Issues**: `[Issue #789,#456]` - when resolving multiple issues
 
 ### Subject Line
 
@@ -35,9 +42,9 @@ Issue: #N
 
 ## Examples
 
-### Simple fix
+### Simple fix (L1 + L2 + issue)
 ```
-[Core][Cache][#42] Fix race condition in cache invalidation
+[Core][Cache][Issue #42] Fix race condition in cache invalidation
 
 - Add mutex lock around cache write operations
 - Update test to verify concurrent access
@@ -45,9 +52,9 @@ Issue: #N
 Issue: #42
 ```
 
-### Documentation update
+### Documentation update (L1 + issue)
 ```
-[Docs][#15] Update API reference for v2 endpoints
+[Docs][Issue #15] Update API reference for v2 endpoints
 
 - Add examples for new authentication flow
 - Remove deprecated endpoints section
@@ -55,9 +62,9 @@ Issue: #42
 Issue: #15
 ```
 
-### Feature addition
+### Feature addition (L1 + L2 + L3 + issue)
 ```
-[API][Auth][#78] Add OAuth2 PKCE flow support
+[API][Auth][OAuth][Issue #78] Add OAuth2 PKCE flow support
 
 - Implement code verifier generation
 - Add token exchange endpoint
@@ -66,15 +73,14 @@ Issue: #15
 Issue: #78
 ```
 
-### Multi-component change
+### Multiple issues
 ```
-[Core][API][#100] Refactor error handling system
+[Core][Issue #42,#43] Refactor cache and error handling
 
-- Standardize error codes across modules
-- Add error context propagation
-- Update API error responses
+- Fix cache race condition (#42)
+- Standardize error codes (#43)
 
-Issue: #100
+Issues: #42, #43
 ```
 
 ## Tag Inference

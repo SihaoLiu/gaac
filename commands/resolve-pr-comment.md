@@ -152,10 +152,10 @@ git diff --cached --stat
 
 ### 5.2 Create Commit
 
-Commit message format:
+Commit message format (reference the issue the PR resolves):
 
 ```
-[L1][L2][#PR] Address review feedback
+[L1][L2][Issue #N] Address review feedback
 
 - Resolved: <brief list of changes>
 - BLOCKING: <count> fixed
@@ -163,8 +163,10 @@ Commit message format:
 - MEDIUM: <count> fixed
 - LOW: <count> fixed
 
-PR: #<pr-number>
+Issue: #N (from PR's "Resolves #N")
 ```
+
+Note: Get issue number from the PR's linked issue (the one in PR title `[Issue #N]`)
 
 ### 5.3 Push
 

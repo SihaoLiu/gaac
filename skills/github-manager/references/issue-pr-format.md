@@ -46,14 +46,27 @@ Examples:
 [L1][Issue #N] <Brief description>
 [L1][L2][Issue #N] <Brief description>
 [L1][L2][L3][Issue #N] <Brief description>
+[L1][Issue #789,#456] <Brief description>   # Multiple issues
 ```
 
 **Note**: PRs MUST include `[Issue #N]` to link to the resolved issue.
+
+**Why `[Issue #N]` in PR title?** When the PR is merged, the issue number becomes visible in git blame and file history, allowing users to navigate directly from a file's commit history to the related issue without going through the PR first.
 
 Examples:
 - `[Docs][Issue #42] Update installation guide`
 - `[Core][Data][Issue #42] Fix memory leak in parser`
 - `[API][REST][Issue #15] Add rate limiting endpoint`
+- `[Core][Issue #42,#43] Fix caching and error handling`
+
+### Multiple Issues
+
+When a PR resolves multiple issues:
+- **Title**: `[L1][Issue #789,#456] Description`
+- **Body**: Must have separate resolves for GitHub auto-linking:
+  ```
+  Resolves #789, resolves #456
+  ```
 
 ## Issue Body (SWE-bench Style)
 

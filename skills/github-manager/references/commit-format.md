@@ -28,6 +28,12 @@ Resolves #N
 
 Constraint: L2 requires L1, L3 requires L1 and L2 (cannot skip levels)
 
+### Multiple Issues
+
+When a commit/PR addresses multiple issues:
+- **Format**: `[L1][Issue #789,#456] Description`
+- **In body**: `Resolves #789, resolves #456` (separate keyword for each)
+
 ## Tag Types
 
 | Type | Purpose |

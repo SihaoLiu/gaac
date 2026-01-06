@@ -293,10 +293,15 @@ gh pr list --head "$(git branch --show-current)" --json number,url
 If no PR exists:
 
 ```bash
+# L1 required, L2 optional; [Issue #N] required in PR titles
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-pr.sh" \
-    --title "[L1][L2][Issue #$1] <Feature description>" \
+    --title "[L1][Issue #$1] <Feature description>" \
     --resolves $1
 ```
+
+Examples:
+- `[Core][Issue #42] Add caching layer`
+- `[Core][Cache][Issue #42] Add Redis backend` (with L2 if sub-area clear)
 
 If PR exists: Just push (PR updates automatically).
 

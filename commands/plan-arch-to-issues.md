@@ -218,13 +218,18 @@ Use "Depends on: #N" in issue body for clear linking.
 Create issues starting with those that have no dependencies:
 
 ```bash
-# Use L1/L2/L3 tags from gaac.md - [Impl] is not a valid tag
-# L2 and L3 are optional; use labels for workflow stage
+# L1 required, L2/L3 optional - use when sub-area is clear
+# Use labels for workflow stage (implementation)
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-issue.sh" \
-    --title "[L1][L2] <Task Title>" \
+    --title "[L1] <Task Title>" \
     --body-file "<generated body>" \
-    --labels "implementation,L1:Component,L2:SubArea"
+    --labels "implementation,L1:Component"
 ```
+
+Examples:
+- `[Core] Setup cache infrastructure` (L1 only)
+- `[Core][Cache] Implement Redis adapter` (L1 + L2)
+- `[Core][Cache][TTL] Add expiration logic` (L1 + L2 + L3, rare)
 
 Capture issue numbers for dependency linking.
 

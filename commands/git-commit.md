@@ -161,7 +161,7 @@ Or manually with HEREDOC for proper formatting:
 
 ```bash
 git commit -m "$(cat <<'EOF'
-[L1][L2][#N] Short description
+[L1][L2][Issue #N] Short description
 
 - Detail 1
 - Detail 2
@@ -170,6 +170,8 @@ Issue: #N
 EOF
 )"
 ```
+
+Note: For multiple issues, use format `[Issue #789,#456]`
 
 ---
 

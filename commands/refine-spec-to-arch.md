@@ -296,8 +296,9 @@ git push -u origin $(git branch --show-current)
 Create PR for architecture review:
 
 ```bash
+# Use L1/L2 from gaac.md; [Issue #N] required for PR titles
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-pr.sh" \
-    --title "[Docs][Arch][#$2] <Feature> architecture" \
+    --title "[Docs][Issue #$2] <Feature> architecture" \
     --body-file "<pr body with summary>" \
     --resolves $2
 ```
