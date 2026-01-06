@@ -125,21 +125,14 @@ if [ -n "$COMPLETION_KEYWORD" ]; then
     fi
 fi
 
-# Extract review score
+# Extract review score (REQUIRED format)
 # Format: <!-- GAAC_REVIEW_SCORE: 85 -->
 REVIEW_SCORE=""
 if echo "$LAST_OUTPUT" | grep -qE 'GAAC_REVIEW_SCORE:[[:space:]]*[0-9]+'; then
     REVIEW_SCORE=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_REVIEW_SCORE:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | tail -1 || echo "")
 fi
 
-# Fallback: Try to extract from natural language (less reliable)
-if [ -z "$REVIEW_SCORE" ]; then
-    if echo "$LAST_OUTPUT" | grep -qiE "self-review.*score|review score|final score"; then
-        REVIEW_SCORE=$(echo "$LAST_OUTPUT" | grep -iE "self-review.*score|review score|final score" | grep -oE '[0-9]+/100|score[[:space:]]*:?[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -1 || echo "")
-    fi
-fi
-
-# Extract review assessment
+# Extract review assessment (REQUIRED format)
 # Format: <!-- GAAC_REVIEW_ASSESSMENT: Approve with Minor Suggestion -->
 REVIEW_ASSESSMENT=""
 if echo "$LAST_OUTPUT" | grep -qE 'GAAC_REVIEW_ASSESSMENT:'; then
@@ -342,7 +335,7 @@ if [ "$COMPLETION_DETECTED" = true ]; then
         fi
     fi
     if [ "$PR_CREATED" = false ]; then
-        MISSING_CRITERIA="${MISSING_CRITERIA}\n- PR: NOT CREATED"
+        MISSING_CRITERIA="${MISSING_CRITERIA}\n- PR marker: NOT FOUND"
     fi
 
     if [ -n "$MISSING_CRITERIA" ]; then
