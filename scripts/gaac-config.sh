@@ -22,8 +22,37 @@ set -euo pipefail
 COMMAND="${1:-}"
 KEY="${2:-}"
 
-if [ -z "$COMMAND" ] || [ -z "$KEY" ]; then
-    echo "Usage: gaac-config.sh <get|require|list|exists> <key>" >&2
+# Validate command is provided
+if [ -z "$COMMAND" ]; then
+    echo "Usage: gaac-config.sh <command> [key] [value]" >&2
+    echo ""
+    echo "Commands requiring <key>:"
+    echo "  get <key>              - Get value (empty if not found)"
+    echo "  require <key>          - Get value (error if not found)"
+    echo "  list <key>             - Get comma-separated values as lines"
+    echo "  exists <key>           - Exit 0 if key exists, 1 otherwise"
+    echo "  get-tags <level>       - Get L1/L2/L3 tags (level: l1, l2, l3)"
+    echo "  append-tag <level> <tag>           - Add new tag to L1/L2/L3"
+    echo "  append-file-mapping <pattern> <tag> - Add new file mapping"
+    echo "  infer-tag <file-path>  - Infer tag from file path"
+    echo ""
+    echo "Commands without arguments:"
+    echo "  docs-base              - Get base docs directory"
+    echo "  draft-dir              - Get draft directory path"
+    echo "  arch-dir               - Get architecture directory path"
+    echo "  get-file-mappings      - Get file-to-tag mappings"
+    echo "  run-quick-test         - Execute gaac.quick_test command"
+    echo "  run-quick-build        - Execute gaac.quick_build command"
+    exit 2
+fi
+
+# Commands that require a key parameter
+COMMANDS_REQUIRING_KEY="get require list exists get-tags append-tag append-file-mapping infer-tag"
+
+# Check if command requires key
+if [[ " $COMMANDS_REQUIRING_KEY " =~ " $COMMAND " ]] && [ -z "$KEY" ]; then
+    echo "Error: Command '$COMMAND' requires a key argument" >&2
+    echo "Usage: gaac-config.sh $COMMAND <key>" >&2
     exit 2
 fi
 

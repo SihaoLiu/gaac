@@ -82,6 +82,9 @@ Model configuration is read from `gaac.md`. The `--role` parameter determines wh
 | `analyzer` (fallback) | `gaac.models.analyzer_fallback` | `claude:opus` | Fallback for analyzer |
 | `checker` | `gaac.models.checker` | `claude:opus` | Critical checking |
 | `proposer` | `gaac.models.proposer` | `claude:sonnet` | Creative proposals |
+| `proposer_secondary` | `gaac.models.proposer_secondary` | `gemini:gemini-3-pro-preview` | Secondary proposer (Gemini) |
+| `code_reviewer` | `gaac.models.code_reviewer` | `codex:gpt-5.2-codex:xhigh` | Independent code review |
+| `code_reviewer` (fallback) | `gaac.models.code_reviewer_fallback` | `claude:opus` | Fallback for code review |
 
 **Usage:**
 ```bash

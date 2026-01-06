@@ -92,6 +92,14 @@ case "$MODEL_ROLE" in
         MODEL_CONFIG=$(get_model_config "proposer" "claude:sonnet")
         MODEL_FALLBACK=""  # Proposer doesn't need fallback
         ;;
+    proposer_secondary)
+        MODEL_CONFIG=$(get_model_config "proposer_secondary" "gemini:gemini-3-pro-preview")
+        MODEL_FALLBACK=""  # Secondary proposer, no fallback
+        ;;
+    code_reviewer)
+        MODEL_CONFIG=$(get_model_config "code_reviewer" "codex:gpt-5.2-codex:xhigh")
+        MODEL_FALLBACK=$(get_model_config "code_reviewer_fallback" "claude:opus")
+        ;;
     *)
         MODEL_CONFIG="codex:gpt-5.2-codex:xhigh"
         MODEL_FALLBACK="claude:opus"

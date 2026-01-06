@@ -61,6 +61,21 @@ PR_COMMIT=$(echo "$PR_DATA" | jq -r '.mergeCommit.oid // ""' | head -c 7)
 
 echo "  Title: $PR_TITLE"
 echo "  State: $PR_STATE"
+echo "  Merged: ${PR_MERGED_AT:-not merged}"
+
+# ========================================
+# Verify PR is Merged
+# ========================================
+
+if [ -z "$PR_MERGED_AT" ] || [ "$PR_MERGED_AT" = "null" ]; then
+    echo ""
+    echo "❌ Error: PR #$PR_NUMBER is not merged yet" >&2
+    echo "   This script should only be run after the PR has been merged." >&2
+    echo "   Use /close-pr to merge the PR first." >&2
+    exit 1
+fi
+
+echo "  ✓ PR is merged"
 
 # ========================================
 # Parse Issue References
@@ -269,6 +284,115 @@ This issue may now be unblocked.
         fi
     done < <(echo "$DEPENDENT_ISSUES" | jq -c '.[]' 2>/dev/null || true)
 done
+
+# ========================================
+# Cascading Issue Closure (BFS)
+# ========================================
+
+# When an issue is closed, check if any issues that depended on it
+# now have ALL their dependencies resolved. If so, close them too.
+
+echo ""
+echo "Checking for cascading closures..."
+
+# Track closed issues to avoid duplicates and infinite loops
+declare -A CLOSED_ISSUES
+for issue in "${RESOLVED_ISSUES[@]}"; do
+    CLOSED_ISSUES["$issue"]=1
+done
+
+# BFS queue of issues to check
+QUEUE=("${RESOLVED_ISSUES[@]}")
+MAX_DEPTH=10  # Prevent infinite loops
+DEPTH=0
+CASCADE_CLOSED=()
+
+while [ ${#QUEUE[@]} -gt 0 ] && [ $DEPTH -lt $MAX_DEPTH ]; do
+    DEPTH=$((DEPTH + 1))
+    NEXT_QUEUE=()
+
+    for closed_issue in "${QUEUE[@]}"; do
+        # Find open issues that depend on this closed issue
+        # Search patterns: "Depends on: #N", "Blocked by #N", "Requires #N"
+        SEARCH_RESULTS=$(gh issue list --state open --limit 50 --json number,title,body 2>/dev/null || echo "[]")
+
+        while read -r candidate; do
+            [ -z "$candidate" ] && continue
+            CAND_NUM=$(echo "$candidate" | jq -r '.number')
+            CAND_BODY=$(echo "$candidate" | jq -r '.body // ""')
+            CAND_TITLE=$(echo "$candidate" | jq -r '.title // ""')
+
+            # Skip if already closed or in queue
+            [ -n "${CLOSED_ISSUES[$CAND_NUM]:-}" ] && continue
+
+            # Check if this candidate depends on the closed issue
+            if ! echo "$CAND_BODY" | grep -qiE "(depends on|blocked by|requires)[[:space:]]*:?[[:space:]]*#$closed_issue\b"; then
+                continue
+            fi
+
+            echo "  Found candidate #$CAND_NUM depends on #$closed_issue"
+
+            # Extract ALL dependencies from this candidate's body
+            ALL_DEPS=$(echo "$CAND_BODY" | grep -oiE "(depends on|blocked by|requires)[[:space:]]*:?[[:space:]]*#[0-9]+" | grep -oE '[0-9]+' | sort -u || true)
+
+            # Check if ALL dependencies are now closed
+            ALL_DEPS_MET=true
+            for dep in $ALL_DEPS; do
+                # Check if this dependency is closed
+                DEP_STATE=$(gh issue view "$dep" --json state --jq '.state' 2>/dev/null || echo "UNKNOWN")
+                if [ "$DEP_STATE" != "CLOSED" ]; then
+                    ALL_DEPS_MET=false
+                    echo "    Dependency #$dep still open, cannot cascade close"
+                    break
+                fi
+            done
+
+            if [ "$ALL_DEPS_MET" = true ]; then
+                echo "    All dependencies met for #$CAND_NUM"
+
+                COMMENT="## 🔗 Cascading Closure
+
+All dependencies for this issue have been resolved:
+
+**Resolved dependencies**: ${ALL_DEPS:-#$closed_issue}
+**Triggered by**: PR #$PR_NUMBER
+
+This issue is being automatically closed as all blocking issues are now resolved.
+
+---
+*Automatically closed by GAAC cascading closure*"
+
+                if [ "$DRY_RUN" = true ]; then
+                    echo "    [DRY RUN] Would cascade close #$CAND_NUM"
+                    ACTIONS_TAKEN+=("{\"issue\": $CAND_NUM, \"action\": \"would_cascade_close\", \"trigger\": $closed_issue}")
+                else
+                    gh issue comment "$CAND_NUM" --body "$COMMENT" 2>/dev/null || {
+                        echo "    ⚠️  Failed to comment on #$CAND_NUM"
+                        continue
+                    }
+                    gh issue close "$CAND_NUM" 2>/dev/null || {
+                        echo "    ⚠️  Failed to close #$CAND_NUM"
+                        continue
+                    }
+                    echo "    ✓ Cascade closed #$CAND_NUM"
+                    CASCADE_CLOSED+=("$CAND_NUM")
+                    ACTIONS_TAKEN+=("{\"issue\": $CAND_NUM, \"action\": \"cascade_closed\", \"trigger\": $closed_issue}")
+                fi
+
+                CLOSED_ISSUES["$CAND_NUM"]=1
+                NEXT_QUEUE+=("$CAND_NUM")
+            fi
+        done < <(echo "$SEARCH_RESULTS" | jq -c '.[]' 2>/dev/null || true)
+    done
+
+    QUEUE=("${NEXT_QUEUE[@]}")
+done
+
+if [ ${#CASCADE_CLOSED[@]} -gt 0 ]; then
+    echo "  Cascade closed ${#CASCADE_CLOSED[@]} issue(s): ${CASCADE_CLOSED[*]}"
+else
+    echo "  No cascading closures needed"
+fi
 
 # ========================================
 # Summary

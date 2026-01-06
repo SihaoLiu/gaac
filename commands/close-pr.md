@@ -57,7 +57,7 @@ Check the following conditions:
 
 **If any condition fails**: Display error and stop.
 
-**If CI checks are pending**: Warn user and ask if they want to proceed with `--force`.
+**If CI checks are pending**: Display warning and stop. User should wait for CI to complete or manually merge if needed.
 
 ---
 
@@ -148,5 +148,5 @@ If merge fails with permission error:
 
 - Merge strategy is read from `gaac.merge_strategy` in gaac.md
 - Default strategy is `squash` if not configured
-- The `--force` flag can bypass pending CI checks (use with caution)
 - Branch is automatically deleted after successful merge
+- CI checks must pass before merging (no bypass option)

@@ -107,90 +107,49 @@ $(cat "$PROMPT_FILE")
 TEMP_INPUT=$(mktemp)
 echo "$REVIEW_INPUT" > "$TEMP_INPUT"
 
+# Temp file for review output
+TEMP_OUTPUT=$(mktemp)
+
 # ========================================
-# Run External Review
+# Run External Review via run-analysis.sh
 # ========================================
 
 echo "Running code review..."
 
-# Check model configuration
-CODE_REVIEWER_MODEL=""
-if [ -f "$CONFIG_HELPER" ]; then
-    CODE_REVIEWER_MODEL=$(bash "$CONFIG_HELPER" get "gaac.models.code_reviewer" 2>/dev/null || echo "")
+# Use run-analysis.sh with code_reviewer role for consistent tool invocation
+RUN_ANALYSIS="$SCRIPT_DIR/run-analysis.sh"
+
+if [ ! -f "$RUN_ANALYSIS" ]; then
+    echo "❌ Error: run-analysis.sh not found at $RUN_ANALYSIS" >&2
+    rm -f "$TEMP_INPUT" "$TEMP_OUTPUT"
+    exit 1
 fi
 
-REVIEW_OUTPUT=""
-TOOL_USED=""
+# Run analysis with code_reviewer role (handles codex → claude fallback)
+if bash "$RUN_ANALYSIS" \
+    --role code_reviewer \
+    --prompt-file "$TEMP_INPUT" \
+    --output-file "$TEMP_OUTPUT" 2>&1; then
 
-# Try codex first (preferred)
-if command -v codex &>/dev/null; then
-    echo "  Using codex for review..."
-
-    # Parse model config (format: tool:model:reasoning)
-    CODEX_MODEL="gpt-5.2-codex"
-    CODEX_REASONING="xhigh"
-    if [ -n "$CODE_REVIEWER_MODEL" ] && [[ "$CODE_REVIEWER_MODEL" == codex:* ]]; then
-        CODEX_MODEL=$(echo "$CODE_REVIEWER_MODEL" | cut -d: -f2)
-        CODEX_REASONING=$(echo "$CODE_REVIEWER_MODEL" | cut -d: -f3)
-    fi
-
-    # Set timeout (10 minutes)
-    TIMEOUT_CMD=""
-    if command -v timeout &>/dev/null; then
-        TIMEOUT_CMD="timeout 600"
-    fi
-
-    REVIEW_OUTPUT=$($TIMEOUT_CMD codex \
-        --model "$CODEX_MODEL" \
-        --reasoning "$CODEX_REASONING" \
-        --approval-mode full-auto \
-        "$(cat "$TEMP_INPUT")" 2>/dev/null || echo "")
-
-    if [ -n "$REVIEW_OUTPUT" ]; then
-        TOOL_USED="codex"
+    if [ -f "$TEMP_OUTPUT" ] && [ -s "$TEMP_OUTPUT" ]; then
+        REVIEW_OUTPUT=$(cat "$TEMP_OUTPUT")
+        # Extract tool used from run-analysis.sh output
+        TOOL_USED=$(grep -o 'Tool: [a-z]*' "$TEMP_OUTPUT" | head -1 | cut -d' ' -f2 || echo "unknown")
     fi
 fi
 
-# Fallback to claude
-if [ -z "$REVIEW_OUTPUT" ] && command -v claude &>/dev/null; then
-    echo "  Falling back to claude for review..."
-
-    # Parse model config for claude
-    CLAUDE_MODEL="opus"
-    if [ -n "$CODE_REVIEWER_MODEL" ] && [[ "$CODE_REVIEWER_MODEL" == claude:* ]]; then
-        CLAUDE_MODEL=$(echo "$CODE_REVIEWER_MODEL" | cut -d: -f2)
-    fi
-
-    # Check fallback config
-    FALLBACK_MODEL=$(bash "$CONFIG_HELPER" get "gaac.models.code_reviewer_fallback" 2>/dev/null || echo "claude:opus")
-    if [ -z "$CLAUDE_MODEL" ] || [ "$CLAUDE_MODEL" = "opus" ]; then
-        CLAUDE_MODEL=$(echo "$FALLBACK_MODEL" | cut -d: -f2)
-    fi
-
-    TIMEOUT_CMD=""
-    if command -v timeout &>/dev/null; then
-        TIMEOUT_CMD="timeout 600"
-    fi
-
-    REVIEW_OUTPUT=$($TIMEOUT_CMD claude --print --model "$CLAUDE_MODEL" < "$TEMP_INPUT" 2>/dev/null || echo "")
-
-    if [ -n "$REVIEW_OUTPUT" ]; then
-        TOOL_USED="claude"
-    fi
-fi
-
-rm -f "$TEMP_INPUT"
+rm -f "$TEMP_INPUT" "$TEMP_OUTPUT"
 
 # ========================================
 # Process Review Output
 # ========================================
 
 if [ -z "$REVIEW_OUTPUT" ]; then
-    echo "❌ Error: Code review failed - no external tools available" >&2
+    echo "❌ Error: Code review failed - external analysis returned no output" >&2
     exit 1
 fi
 
-echo "  Review completed using $TOOL_USED"
+echo "  Review completed"
 
 # Extract score and assessment
 REVIEW_SCORE=$(echo "$REVIEW_OUTPUT" | grep -oE 'Total:.*\[([0-9]+)/100\]' | grep -oE '[0-9]+' | head -1 || echo "")

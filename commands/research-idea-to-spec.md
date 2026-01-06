@@ -131,13 +131,13 @@ Generate creative proposals based on all gathered research. Output to `./${DRAFT
 **Gemini Proposer** (optional, if available):
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
-    --role proposer \
+    --role proposer_secondary \
     --prompt "Design approaches for: <idea summary>" \
     --context-files "./${DRAFT_DIR}/research_*.md" \
     --output-file "./${DRAFT_DIR}/proposer_gemini_<topic>.md"
 ```
 
-Note: If Gemini is not available, skip this step. The Claude proposer is sufficient.
+Note: Uses `gaac.models.proposer_secondary` (default: gemini:gemini-3-pro-preview). If Gemini is not available, skip this step. The Claude proposer is sufficient.
 
 ### 3.2 Checker Stage (Critical Review)
 

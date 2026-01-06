@@ -46,28 +46,29 @@ fi
 echo ""
 
 # ========================================
-# Optional Tools (at least codex or claude required for code review)
+# Claude CLI (Required - GAAC runs within Claude Code)
 # ========================================
 
-echo "Checking optional tools..."
+echo "Checking Claude CLI..."
 
-# Track if at least one external AI tool is available
-EXTERNAL_TOOL_AVAILABLE=false
-
-# Check codex (preferred for code review)
-if command -v codex &>/dev/null; then
-    echo "  ✓ codex: available (preferred for code review)"
-    EXTERNAL_TOOL_AVAILABLE=true
+# Claude is REQUIRED since GAAC runs within Claude Code
+if command -v claude &>/dev/null; then
+    echo "  ✓ claude: available (required)"
 else
-    echo "  - codex: not found"
+    ERRORS+=("claude CLI is not available. GAAC requires Claude Code environment.")
 fi
 
-# Check claude CLI (fallback for code review)
-if command -v claude &>/dev/null; then
-    echo "  ✓ claude: available (fallback for code review)"
-    EXTERNAL_TOOL_AVAILABLE=true
+# ========================================
+# Optional External Tools
+# ========================================
+
+echo "Checking optional external tools..."
+
+# Check codex (preferred for independent code review)
+if command -v codex &>/dev/null; then
+    echo "  ✓ codex: available (preferred for independent review)"
 else
-    echo "  - claude: not found"
+    WARNINGS+=("codex not found. Code review will use claude fallback.")
 fi
 
 # Check gemini (for web research)
@@ -75,11 +76,6 @@ if command -v gemini &>/dev/null; then
     echo "  ✓ gemini: available (for web research)"
 else
     WARNINGS+=("gemini not found. Web-enhanced research will be skipped.")
-fi
-
-# Warn if no external AI tool available
-if [ "$EXTERNAL_TOOL_AVAILABLE" = false ]; then
-    WARNINGS+=("No external AI tools (codex, claude) available. Code review will be limited to self-check only.")
 fi
 
 echo ""
