@@ -100,6 +100,13 @@ get_docs_paths() {
     echo "$value" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | sed '/^$/d'
 }
 
+# Check if path looks like a file (ends with common extensions)
+is_file_path() {
+    local p="$1"
+    # Filter out paths that look like files (end with .md, .txt, .rst, etc.)
+    [[ "$p" =~ \.(md|txt|rst|adoc|html|htm)$ ]]
+}
+
 # Find the base docs directory (the shortest path that's a parent of others)
 find_docs_base() {
     local paths=()
@@ -112,9 +119,15 @@ find_docs_base() {
         return
     fi
 
-    # Find the shortest path that doesn't end with /draft or /architecture
+    # Find the shortest path that:
+    # 1. Is not a file path (doesn't end with .md, .txt, etc.)
+    # 2. Doesn't end with /draft or /architecture
     local base=""
     for p in "${paths[@]}"; do
+        # Skip file paths (e.g., README.md) - they can't be base directories
+        if is_file_path "$p"; then
+            continue
+        fi
         if [[ ! "$p" =~ /draft$ ]] && [[ ! "$p" =~ /architecture$ ]] && [[ ! "$p" =~ /arch$ ]]; then
             if [ -z "$base" ] || [ ${#p} -lt ${#base} ]; then
                 base="$p"
@@ -125,6 +138,10 @@ find_docs_base() {
     # If no suitable base found, extract from paths ending with /draft or /architecture
     if [ -z "$base" ]; then
         for p in "${paths[@]}"; do
+            # Skip file paths
+            if is_file_path "$p"; then
+                continue
+            fi
             local candidate="${p%/draft}"
             candidate="${candidate%/architecture}"
             candidate="${candidate%/arch}"

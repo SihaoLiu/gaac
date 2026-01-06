@@ -96,9 +96,9 @@ if [ -n "$L1_TAG" ]; then
     fi
 fi
 
-# Add issue reference if provided
+# Add issue reference if provided (use [Issue #N] format per GAAC standard)
 if [ -n "$ISSUE" ]; then
-    COMMIT_MSG="$COMMIT_MSG[#$ISSUE]"
+    COMMIT_MSG="$COMMIT_MSG[Issue #$ISSUE]"
 fi
 
 # Add message

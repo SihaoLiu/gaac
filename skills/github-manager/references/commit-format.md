@@ -6,6 +6,9 @@ This guide defines GAAC-standard commit message formats.
 
 ```
 [L1][L2] Brief summary (50 chars max)
+[L1][L2][L3] Brief summary (50 chars max)          # L3 optional
+[L1][L2][Issue #N] Brief summary                   # With issue ref
+[L1][L2][L3][Issue #N] Brief summary               # Full format
 
 Detailed description of the change.
 Explain the "why" not just the "what".
@@ -15,6 +18,15 @@ Explain the "why" not just the "what".
 
 Resolves #N
 ```
+
+### Tag Rules
+
+- **L1 (Component)**: Required - major area (Core, API, UI, etc.)
+- **L2 (SubArea)**: Optional - feature within L1
+- **L3 (SubSubArea)**: Optional - specific focus within L2
+- **[Issue #N]**: Optional - appears AFTER L-tags in title
+
+Constraint: L2 requires L1, L3 requires L1 and L2 (cannot skip levels)
 
 ## Tag Types
 
