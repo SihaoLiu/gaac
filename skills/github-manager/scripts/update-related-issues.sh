@@ -78,6 +78,42 @@ fi
 echo "  ✓ PR is merged"
 
 # ========================================
+# Helper Functions
+# ========================================
+
+# Extract all issue numbers from lines containing dependency keywords
+# Handles: "Depends on: #1, #2, #3" / "Blocked by #4 and #5" / "Requires #6"
+# Returns: space-separated list of issue numbers
+extract_dependencies() {
+    local text="$1"
+    local deps=""
+
+    # Find lines containing dependency keywords, then extract ALL #N from those lines
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        # Check if line contains any dependency keyword (case insensitive)
+        if echo "$line" | grep -qiE "(depends on|blocked by|requires)"; then
+            # Extract all #N from this line
+            local line_deps=$(echo "$line" | grep -oE '#[0-9]+' | grep -oE '[0-9]+' | tr '\n' ' ')
+            deps="$deps $line_deps"
+        fi
+    done <<< "$text"
+
+    # Return unique, sorted list
+    echo "$deps" | tr ' ' '\n' | grep -v '^$' | sort -nu | tr '\n' ' ' | xargs
+}
+
+# Check if an issue's body contains a specific issue as a dependency
+# Returns: 0 if dependency found, 1 otherwise
+has_dependency() {
+    local body="$1"
+    local dep_num="$2"
+
+    local all_deps=$(extract_dependencies "$body")
+    [[ " $all_deps " =~ " $dep_num " ]]
+}
+
+# ========================================
 # Parse Issue References
 # ========================================
 
@@ -244,16 +280,24 @@ echo ""
 echo "Searching for dependent issues..."
 
 for resolved in "${RESOLVED_ISSUES[@]}"; do
-    # Search for issues that "Depend on: #N" this resolved issue
-    DEPENDENT_ISSUES=$(gh issue list --state open --search "depends on #$resolved" --json number,title 2>/dev/null || echo "[]")
+    # Search for open issues that mention #$resolved (may depend on, blocked by, or require it)
+    # Use broader search to catch all patterns, then filter with has_dependency()
+    CANDIDATE_ISSUES=$(gh issue list --state open --search "#$resolved" --json number,title,body --limit 100 2>/dev/null || echo "[]")
 
     while read -r dep_issue; do
         [ -z "$dep_issue" ] && continue
         DEP_NUM=$(echo "$dep_issue" | jq -r '.number')
         DEP_TITLE=$(echo "$dep_issue" | jq -r '.title')
+        DEP_BODY=$(echo "$dep_issue" | jq -r '.body // ""')
 
         # Skip if already processed
         if [[ " ${RESOLVED_ISSUES[*]} " =~ " ${DEP_NUM} " ]] || [[ " ${RELATED_ISSUES[*]} " =~ " ${DEP_NUM} " ]]; then
+            continue
+        fi
+
+        # Verify this issue actually depends on the resolved issue (not just mentions it)
+        # Checks: "depends on #N", "blocked by #N", "requires #N" (and multi-#N on same line)
+        if ! has_dependency "$DEP_BODY" "$resolved"; then
             continue
         fi
 
@@ -282,7 +326,7 @@ This issue may now be unblocked.
             echo "    ✓ Notified #$DEP_NUM about unblocked dependency"
             ACTIONS_TAKEN+=("{\"issue\": $DEP_NUM, \"action\": \"notified_unblocked\", \"dependency\": $resolved}")
         fi
-    done < <(echo "$DEPENDENT_ISSUES" | jq -c '.[]' 2>/dev/null || true)
+    done < <(echo "$CANDIDATE_ISSUES" | jq -c '.[]' 2>/dev/null || true)
 done
 
 # ========================================
@@ -312,9 +356,9 @@ while [ ${#QUEUE[@]} -gt 0 ] && [ $DEPTH -lt $MAX_DEPTH ]; do
     NEXT_QUEUE=()
 
     for closed_issue in "${QUEUE[@]}"; do
-        # Find open issues that depend on this closed issue
-        # Search patterns: "Depends on: #N", "Blocked by #N", "Requires #N"
-        SEARCH_RESULTS=$(gh issue list --state open --limit 50 --json number,title,body 2>/dev/null || echo "[]")
+        # Find open issues that mention this closed issue (targeted search, not all open issues)
+        # Then filter to only those that actually depend on it
+        SEARCH_RESULTS=$(gh issue list --state open --search "#$closed_issue" --json number,title,body --limit 100 2>/dev/null || echo "[]")
 
         while read -r candidate; do
             [ -z "$candidate" ] && continue
@@ -325,15 +369,16 @@ while [ ${#QUEUE[@]} -gt 0 ] && [ $DEPTH -lt $MAX_DEPTH ]; do
             # Skip if already closed or in queue
             [ -n "${CLOSED_ISSUES[$CAND_NUM]:-}" ] && continue
 
-            # Check if this candidate depends on the closed issue
-            if ! echo "$CAND_BODY" | grep -qiE "(depends on|blocked by|requires)[[:space:]]*:?[[:space:]]*#$closed_issue\b"; then
+            # Check if this candidate depends on the closed issue using has_dependency()
+            # Handles: "Depends on: #1, #2" / "Blocked by #N" / "Requires #N"
+            if ! has_dependency "$CAND_BODY" "$closed_issue"; then
                 continue
             fi
 
             echo "  Found candidate #$CAND_NUM depends on #$closed_issue"
 
-            # Extract ALL dependencies from this candidate's body
-            ALL_DEPS=$(echo "$CAND_BODY" | grep -oiE "(depends on|blocked by|requires)[[:space:]]*:?[[:space:]]*#[0-9]+" | grep -oE '[0-9]+' | sort -u || true)
+            # Extract ALL dependencies from this candidate's body using extract_dependencies()
+            ALL_DEPS=$(extract_dependencies "$CAND_BODY")
 
             # Check if ALL dependencies are now closed
             ALL_DEPS_MET=true

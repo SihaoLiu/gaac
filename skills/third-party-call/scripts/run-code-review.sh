@@ -110,6 +110,9 @@ echo "$REVIEW_INPUT" > "$TEMP_INPUT"
 # Temp file for review output
 TEMP_OUTPUT=$(mktemp)
 
+# Temp file for capturing run-analysis.sh stdout (contains tool info)
+TEMP_STDOUT=$(mktemp)
+
 # ========================================
 # Run External Review via run-analysis.sh
 # ========================================
@@ -121,24 +124,39 @@ RUN_ANALYSIS="$SCRIPT_DIR/run-analysis.sh"
 
 if [ ! -f "$RUN_ANALYSIS" ]; then
     echo "❌ Error: run-analysis.sh not found at $RUN_ANALYSIS" >&2
-    rm -f "$TEMP_INPUT" "$TEMP_OUTPUT"
+    rm -f "$TEMP_INPUT" "$TEMP_OUTPUT" "$TEMP_STDOUT"
     exit 1
 fi
 
+# Initialize
+REVIEW_OUTPUT=""
+TOOL_USED="unknown"
+
 # Run analysis with code_reviewer role (handles codex → claude fallback)
+# Capture stdout to TEMP_STDOUT for parsing tool info
 if bash "$RUN_ANALYSIS" \
     --role code_reviewer \
     --prompt-file "$TEMP_INPUT" \
-    --output-file "$TEMP_OUTPUT" 2>&1; then
+    --output-file "$TEMP_OUTPUT" > "$TEMP_STDOUT" 2>&1; then
 
     if [ -f "$TEMP_OUTPUT" ] && [ -s "$TEMP_OUTPUT" ]; then
         REVIEW_OUTPUT=$(cat "$TEMP_OUTPUT")
-        # Extract tool used from run-analysis.sh output
-        TOOL_USED=$(grep -o 'Tool: [a-z]*' "$TEMP_OUTPUT" | head -1 | cut -d' ' -f2 || echo "unknown")
     fi
 fi
 
-rm -f "$TEMP_INPUT" "$TEMP_OUTPUT"
+# Extract tool used from run-analysis.sh stdout
+# run-analysis.sh outputs "Tool: codex/claude/gemini" and JSON_OUTPUT with tool field
+if [ -f "$TEMP_STDOUT" ] && [ -s "$TEMP_STDOUT" ]; then
+    # Try JSON_OUTPUT first (more reliable)
+    TOOL_USED=$(grep -o '"tool":[[:space:]]*"[^"]*"' "$TEMP_STDOUT" | head -1 | grep -oE '"[^"]*"$' | tr -d '"' || true)
+
+    # Fallback to "Tool: xxx" line
+    if [ -z "$TOOL_USED" ]; then
+        TOOL_USED=$(grep -oE '^Tool:[[:space:]]*[a-z]+' "$TEMP_STDOUT" | head -1 | awk '{print $2}' || echo "unknown")
+    fi
+fi
+
+rm -f "$TEMP_INPUT" "$TEMP_OUTPUT" "$TEMP_STDOUT"
 
 # ========================================
 # Process Review Output
