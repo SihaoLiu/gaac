@@ -109,44 +109,32 @@ if [ -z "$LAST_OUTPUT" ]; then
 fi
 
 # ========================================
-# Check Completion Criteria
+# Extract All Status Markers First
 # ========================================
 
-# Pattern 1: XML-tagged completion keyword (primary method)
+# Extract completion keyword from XML tags
 # Format: <gaac-complete>WORK_ON_ISSUE_42_DONE</gaac-complete>
+COMPLETION_DETECTED=false
+COMPLETION_TEXT=""
 if [ -n "$COMPLETION_KEYWORD" ]; then
     # Use Perl for reliable multiline XML tag extraction (same as official ralph-wiggum)
     COMPLETION_TEXT=$(echo "$LAST_OUTPUT" | perl -0777 -pe 's/.*?<gaac-complete>(.*?)<\/gaac-complete>.*/$1/s; s/^\s+|\s+$//g; s/\s+/ /g' 2>/dev/null || echo "")
 
     if [ -n "$COMPLETION_TEXT" ] && [ "$COMPLETION_TEXT" = "$COMPLETION_KEYWORD" ]; then
-        echo "GAAC: Completion detected: <gaac-complete>$COMPLETION_KEYWORD</gaac-complete>" >&2
-        rm -f "$STATE_FILE"
-        exit 0
+        COMPLETION_DETECTED=true
     fi
 
     # Fallback: Also check for plain keyword (backwards compatibility)
-    if echo "$LAST_OUTPUT" | grep -qF "$COMPLETION_KEYWORD"; then
-        echo "GAAC: Completion keyword detected (plain): $COMPLETION_KEYWORD" >&2
-        rm -f "$STATE_FILE"
-        exit 0
+    if [ "$COMPLETION_DETECTED" = false ] && echo "$LAST_OUTPUT" | grep -qF "$COMPLETION_KEYWORD"; then
+        COMPLETION_DETECTED=true
     fi
 fi
 
-# Check for review passed markers
-REVIEW_PASSED=false
-
-# Pattern 2: Structured review score marker (primary method)
+# Extract review score
 # Format: <!-- GAAC_REVIEW_SCORE: 85 -->
 REVIEW_SCORE=""
 if echo "$LAST_OUTPUT" | grep -qE 'GAAC_REVIEW_SCORE:[[:space:]]*[0-9]+'; then
     REVIEW_SCORE=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_REVIEW_SCORE:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | tail -1 || echo "")
-fi
-
-# Pattern 2b: Structured review assessment marker
-# Format: <!-- GAAC_REVIEW_ASSESSMENT: Approve with Minor Suggestion -->
-REVIEW_ASSESSMENT=""
-if echo "$LAST_OUTPUT" | grep -qE 'GAAC_REVIEW_ASSESSMENT:'; then
-    REVIEW_ASSESSMENT=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_REVIEW_ASSESSMENT:[^>-]+' | sed 's/GAAC_REVIEW_ASSESSMENT:[[:space:]]*//' | sed 's/[[:space:]]*$//' | tail -1 || echo "")
 fi
 
 # Fallback: Try to extract from natural language (less reliable)
@@ -156,12 +144,39 @@ if [ -z "$REVIEW_SCORE" ]; then
     fi
 fi
 
+# Extract review assessment
+# Format: <!-- GAAC_REVIEW_ASSESSMENT: Approve with Minor Suggestion -->
+REVIEW_ASSESSMENT=""
+if echo "$LAST_OUTPUT" | grep -qE 'GAAC_REVIEW_ASSESSMENT:'; then
+    REVIEW_ASSESSMENT=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_REVIEW_ASSESSMENT:[^>-]+' | sed 's/GAAC_REVIEW_ASSESSMENT:[[:space:]]*//' | sed 's/[[:space:]]*$//' | tail -1 || echo "")
+fi
+
+# Extract PR number
+# Format: <!-- GAAC_PR_CREATED: 123 -->
+PR_NUMBER=""
+if echo "$LAST_OUTPUT" | grep -qE 'GAAC_PR_CREATED:[[:space:]]*[0-9]+'; then
+    PR_NUMBER=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_PR_CREATED:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | tail -1 || echo "")
+fi
+
+# Fallback: Check for PR creation in natural language
+if [ -z "$PR_NUMBER" ]; then
+    if echo "$LAST_OUTPUT" | grep -qiE "pr.*created|created.*pr|pull request.*#[0-9]+|gh pr create.*success"; then
+        # Mark as detected even without number
+        PR_NUMBER="detected"
+    fi
+fi
+
+# ========================================
+# Evaluate Completion Criteria
+# ========================================
+
 # Valid assessments for passing
 VALID_ASSESSMENTS="Approve|Approve with Minor Suggestion"
 
-# Check if review passes: score >= 81 AND assessment is valid
+# Check individual criteria
 SCORE_PASSES=false
 ASSESSMENT_PASSES=false
+PR_CREATED=false
 
 if [ -n "$REVIEW_SCORE" ] && [ "$REVIEW_SCORE" -ge 81 ] 2>/dev/null; then
     SCORE_PASSES=true
@@ -171,48 +186,45 @@ if [ -n "$REVIEW_ASSESSMENT" ] && echo "$REVIEW_ASSESSMENT" | grep -qE "^($VALID
     ASSESSMENT_PASSES=true
 fi
 
-# Require BOTH score >= 81 AND valid assessment
-if [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ]; then
-    # Also need to check if PR was created
-    if echo "$LAST_OUTPUT" | grep -qiE "pr.*created|created.*pr|pull request.*#[0-9]+|gh pr create.*success"; then
-        REVIEW_PASSED=true
-        echo "GAAC: Review passed (score $REVIEW_SCORE >= 81, assessment: $REVIEW_ASSESSMENT) and PR created" >&2
-    fi
+if [ -n "$PR_NUMBER" ]; then
+    PR_CREATED=true
 fi
 
-# Pattern 3: Structured PR created marker
-# Format: <!-- GAAC_PR_CREATED: 123 -->
-PR_NUMBER=""
-if echo "$LAST_OUTPUT" | grep -qE 'GAAC_PR_CREATED:[[:space:]]*[0-9]+'; then
-    PR_NUMBER=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_PR_CREATED:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | tail -1 || echo "")
-    if [ -n "$PR_NUMBER" ] && [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ]; then
-        REVIEW_PASSED=true
-        echo "GAAC: Review passed (score $REVIEW_SCORE, assessment: $REVIEW_ASSESSMENT) with PR #$PR_NUMBER" >&2
-    fi
-fi
+# ========================================
+# Final Decision: ALL criteria must pass
+# ========================================
 
-# Pattern 4: Phase completion markers (only if score and assessment are valid)
-if [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ]; then
-    if echo "$LAST_OUTPUT" | grep -qiE "phase 6.*complete|phase 7.*complete|phase 8.*complete|commit.*success.*push|pushed.*remote.*success"; then
-        REVIEW_PASSED=true
-        echo "GAAC: Phase completion marker detected (score $REVIEW_SCORE, assessment: $REVIEW_ASSESSMENT)" >&2
-    fi
-fi
+# For completion, we require ALL of:
+# 1. Completion keyword detected (Claude explicitly says it's done)
+# 2. Review score >= 81
+# 3. Assessment is Approve or Approve with Minor Suggestion
+# 4. PR has been created
 
-# Pattern 5: All acceptance criteria + tests (only if score and assessment are valid)
-if [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ]; then
-    if echo "$LAST_OUTPUT" | grep -qiE "all acceptance criteria.*met|acceptance criteria:.*\[x\].*\[x\]"; then
-        if echo "$LAST_OUTPUT" | grep -qiE "tests.*pass|all tests.*pass|test suite.*pass"; then
-            REVIEW_PASSED=true
-            echo "GAAC: Acceptance criteria and tests passed (score $REVIEW_SCORE, assessment: $REVIEW_ASSESSMENT)" >&2
-        fi
-    fi
-fi
+ALL_CRITERIA_MET=false
 
-# If review passed, clean up and allow exit
-if [ "$REVIEW_PASSED" = true ]; then
+if [ "$COMPLETION_DETECTED" = true ] && [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ] && [ "$PR_CREATED" = true ]; then
+    ALL_CRITERIA_MET=true
+    echo "GAAC: All completion criteria met:" >&2
+    echo "  - Completion keyword: $COMPLETION_KEYWORD" >&2
+    echo "  - Review score: $REVIEW_SCORE/100 (>= 81)" >&2
+    echo "  - Assessment: $REVIEW_ASSESSMENT" >&2
+    echo "  - PR: #$PR_NUMBER" >&2
     rm -f "$STATE_FILE"
     exit 0
+fi
+
+# Also allow exit if all review criteria pass even without explicit completion keyword
+# (for cases where Claude completes properly but forgets the keyword)
+if [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ] && [ "$PR_CREATED" = true ]; then
+    # Check for phase completion markers as additional confirmation
+    if echo "$LAST_OUTPUT" | grep -qiE "phase 8.*complete|final summary|work.*complete"; then
+        echo "GAAC: Review criteria met with phase completion marker:" >&2
+        echo "  - Review score: $REVIEW_SCORE/100 (>= 81)" >&2
+        echo "  - Assessment: $REVIEW_ASSESSMENT" >&2
+        echo "  - PR: #$PR_NUMBER" >&2
+        rm -f "$STATE_FILE"
+        exit 0
+    fi
 fi
 
 # ========================================
@@ -326,6 +338,55 @@ $BUILD_ISSUES
     fi
 fi
 
+# Check for missing PR
+if [ "$PR_CREATED" = false ]; then
+    ISSUES="${ISSUES}
+
+### Missing PR
+No PR creation detected. Please create a PR:
+\`\`\`
+bash \"\${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-pr.sh\" --title \"[Issue #$ISSUE_NUMBER] ...\" --resolves $ISSUE_NUMBER
+\`\`\`
+
+Then output: \`<!-- GAAC_PR_CREATED: N -->\` where N is the PR number."
+fi
+
+# Special case: completion keyword detected but other criteria missing
+if [ "$COMPLETION_DETECTED" = true ]; then
+    MISSING_CRITERIA=""
+    if [ "$SCORE_PASSES" = false ]; then
+        if [ -n "$REVIEW_SCORE" ]; then
+            MISSING_CRITERIA="${MISSING_CRITERIA}\n- Review score: $REVIEW_SCORE/100 (need >= 81)"
+        else
+            MISSING_CRITERIA="${MISSING_CRITERIA}\n- Review score: NOT FOUND (need >= 81)"
+        fi
+    fi
+    if [ "$ASSESSMENT_PASSES" = false ]; then
+        if [ -n "$REVIEW_ASSESSMENT" ]; then
+            MISSING_CRITERIA="${MISSING_CRITERIA}\n- Assessment: '$REVIEW_ASSESSMENT' (need 'Approve' or 'Approve with Minor Suggestion')"
+        else
+            MISSING_CRITERIA="${MISSING_CRITERIA}\n- Assessment: NOT FOUND"
+        fi
+    fi
+    if [ "$PR_CREATED" = false ]; then
+        MISSING_CRITERIA="${MISSING_CRITERIA}\n- PR: NOT CREATED"
+    fi
+
+    if [ -n "$MISSING_CRITERIA" ]; then
+        ISSUES="${ISSUES}
+
+### Completion Keyword Detected But Criteria Not Met
+You output \`<gaac-complete>$COMPLETION_KEYWORD</gaac-complete>\` but the following criteria are not satisfied:
+$(echo -e "$MISSING_CRITERIA")
+
+**You cannot complete until ALL criteria are met.** Please:
+1. Run code-review if not done: \`bash \"\${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-code-review.sh\" --issue-number $ISSUE_NUMBER\`
+2. Ensure score >= 81 and assessment is Approve
+3. Create PR if not done
+4. Output the structured markers for each criterion"
+    fi
+fi
+
 # If no specific issues found, provide guidance
 if [ -z "$(echo "$ISSUES" | tr -d '[:space:]')" ]; then
     ISSUES="
@@ -335,10 +396,14 @@ No specific issues were extracted from the output. Please ensure:
 1. **Self-Check**: All acceptance criteria met, no TODOs left
 2. **Tests**: All tests pass
 3. **Peer-Check**: External review passed (PASS status)
-4. **Review Score**: Self-review score >= 81 (output as \`<!-- GAAC_REVIEW_SCORE: NN -->\`)
-5. **PR**: Pull request created (output as \`<!-- GAAC_PR_CREATED: N -->\`)
+4. **Code-Review**: Run code-reviewer and get score >= 81 with Approve assessment
+5. **PR**: Pull request created
 
-When complete, output: \`<gaac-complete>$COMPLETION_KEYWORD</gaac-complete>\`"
+**Required Output Markers:**
+- \`<!-- GAAC_REVIEW_SCORE: NN -->\` (score from code-reviewer)
+- \`<!-- GAAC_REVIEW_ASSESSMENT: Approve -->\` (assessment from code-reviewer)
+- \`<!-- GAAC_PR_CREATED: N -->\` (PR number)
+- \`<gaac-complete>$COMPLETION_KEYWORD</gaac-complete>\` (only when ALL above are satisfied)"
 fi
 
 # Update iteration in state file
@@ -346,29 +411,41 @@ TEMP_FILE="${STATE_FILE}.tmp.$$"
 sed "s/^review_iteration: .*/review_iteration: $NEXT_ITERATION/" "$STATE_FILE" > "$TEMP_FILE"
 mv "$TEMP_FILE" "$STATE_FILE"
 
+# Build current status summary
+STATUS_SUMMARY="- **Completion Keyword**: $([ "$COMPLETION_DETECTED" = true ] && echo "Detected" || echo "Not detected")
+- **Review Score**: $([ -n "$REVIEW_SCORE" ] && echo "$REVIEW_SCORE/100 $([ "$SCORE_PASSES" = true ] && echo '✓' || echo '✗ need >= 81')" || echo "Not found")
+- **Assessment**: $([ -n "$REVIEW_ASSESSMENT" ] && echo "$REVIEW_ASSESSMENT $([ "$ASSESSMENT_PASSES" = true ] && echo '✓' || echo '✗')" || echo "Not found")
+- **PR Created**: $([ "$PR_CREATED" = true ] && echo "Yes (#$PR_NUMBER) ✓" || echo "No ✗")"
+
 # Build reason to send back to Claude
 REASON="# GAAC Review Loop - Iteration $NEXT_ITERATION of $MAX_ITERATIONS
 
 ## Issue: #$ISSUE_NUMBER
 
-The work-on-issue workflow cannot complete because the review phase has not passed.
+The work-on-issue workflow cannot complete because **ALL completion criteria must be satisfied**.
+
+## Current Criteria Status
+$STATUS_SUMMARY
 
 ## Issues Found
 $ISSUES
 
 ## Required Actions
 
-1. Fix the issues identified above
-2. Re-run the review checks (self-check → peer-check → self-review)
-3. Output review score: \`<!-- GAAC_REVIEW_SCORE: NN -->\` (need >= 81)
-4. Create PR if not yet created, output: \`<!-- GAAC_PR_CREATED: N -->\`
-5. When ALL criteria met, output: \`<gaac-complete>$COMPLETION_KEYWORD</gaac-complete>\`
+1. Fix any issues identified above
+2. Run code-reviewer: \`bash \"\${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-code-review.sh\" --issue-number $ISSUE_NUMBER\`
+3. Ensure output includes: \`<!-- GAAC_REVIEW_SCORE: NN -->\` (need >= 81)
+4. Ensure output includes: \`<!-- GAAC_REVIEW_ASSESSMENT: Approve -->\` or \`Approve with Minor Suggestion\`
+5. Create PR if not done: \`bash \"\${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-pr.sh\" --resolves $ISSUE_NUMBER\`
+6. Ensure output includes: \`<!-- GAAC_PR_CREATED: N -->\`
+7. **ONLY when ALL above are satisfied**, output: \`<gaac-complete>$COMPLETION_KEYWORD</gaac-complete>\`
 
-## Current Status
-
-- **Iteration**: $NEXT_ITERATION of $MAX_ITERATIONS
-- **Phase**: Review loop (Phase 5)
-- **Issue**: #$ISSUE_NUMBER
+## Important
+The Stop hook will block exit until ALL of these are true:
+- Review score >= 81
+- Assessment is 'Approve' or 'Approve with Minor Suggestion'
+- PR has been created
+- Completion keyword is output
 
 Continue with the fixes and complete the review."
 
