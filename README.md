@@ -54,23 +54,23 @@ draft-*.md  arch-*.md    Issues      PR Created     PR Merged
 ```mermaid
 flowchart LR
     subgraph Stage1[Stage 1: Research]
-        R[/research-idea-to-spec]
+        R["research-idea-to-spec"]
     end
 
     subgraph Stage2[Stage 2: Architecture]
-        A[/refine-spec-to-arch]
+        A["refine-spec-to-arch"]
     end
 
     subgraph Stage3[Stage 3: Planning]
-        P[/plan-arch-to-issues]
+        P["plan-arch-to-issues"]
     end
 
     subgraph Stage4[Stage 4: Implementation]
-        W[/work-on-issue]
+        W["work-on-issue"]
     end
 
     subgraph Stage5[Stage 5: Close]
-        C[/close-pr]
+        C["close-pr"]
     end
 
     Stage1 -->|draft-*.md + Issue| Stage2
@@ -88,7 +88,7 @@ Transform ideas into draft specifications through multi-source research and thre
 
 ```mermaid
 flowchart TB
-    Start([/research-idea-to-spec]) --> P0
+    Start(["research-idea-to-spec"]) --> P0
 
     subgraph P0[Phase 0: Validation]
         IV[init-validator]
@@ -157,7 +157,7 @@ Refine drafts into architecture documents and implementation plans.
 
 ```mermaid
 flowchart TB
-    Start([/refine-spec-to-arch]) --> P0
+    Start(["refine-spec-to-arch"]) --> P0
 
     subgraph P0[Phase 0: Validation]
         IV2[init-validator]
@@ -230,7 +230,7 @@ Convert implementation plans into test-driven GitHub issues.
 
 ```mermaid
 flowchart TB
-    Start([/plan-arch-to-issues]) --> P0
+    Start(["plan-arch-to-issues"]) --> P0
 
     subgraph P0[Phase 0: Validation]
         IV3[init-validator]
@@ -291,7 +291,7 @@ Complete end-to-end issue resolution with Ralph-Wiggum enhanced review loops.
 
 ```mermaid
 flowchart TB
-    Start([/work-on-issue]) --> P0
+    Start(["work-on-issue"]) --> P0
 
     subgraph P0[Phase 0: Validation]
         IV4[init-validator]
@@ -398,7 +398,7 @@ Merge PR with validation and update all related issues.
 
 ```mermaid
 flowchart TB
-    Start([/close-pr]) --> P0
+    Start(["close-pr"]) --> P0
 
     subgraph P0[Phase 0: Validation]
         CA[Check Arguments]
@@ -449,37 +449,37 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph Idea[💡 Idea]
+    subgraph Idea[Idea]
         I[Text or Markdown]
     end
 
     subgraph S1[Stage 1: Research]
-        R1[/research-idea-to-spec]
+        R1["research-idea-to-spec"]
         R1 --> D1[draft-*.md]
         R1 --> I1[GitHub Issue]
     end
 
     subgraph S2[Stage 2: Architecture]
-        R2[/refine-spec-to-arch]
+        R2["refine-spec-to-arch"]
         R2 --> A2[arch-*.md PR]
         R2 --> IP2[impl-*.md]
     end
 
     subgraph S3[Stage 3: Planning]
-        R3[/plan-arch-to-issues]
+        R3["plan-arch-to-issues"]
         R3 --> IS3[Issue #1]
         R3 --> IS4[Issue #2]
         R3 --> IS5[Issue #N]
     end
 
     subgraph S4[Stage 4: Implementation]
-        R4[/work-on-issue]
+        R4["work-on-issue"]
         R4 --> PR4[PR #M]
     end
 
     subgraph S5[Stage 5: Close]
-        R5[/close-pr]
-        R5 --> M5[Merged ✓]
+        R5["close-pr"]
+        R5 --> M5[Merged]
     end
 
     Idea --> S1
