@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "gaac",
-      "source": "..",
+      "source": "./",
       "description": "GitHub-as-a-Context (GAAC) - A methodology for AI-native software development that uses GitHub Issues, PRs, and Projects as persistent context for LLM coding agents.",
       "version": "1.0.0"
     }
