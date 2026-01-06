@@ -1,7 +1,7 @@
 ---
 description: Update related issues after PR merge (wrapper for update-related-issues.sh)
 argument-hint: <issue-or-pr-number>
-allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh issue view:*), Read
+allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh issue view:*), Bash(gh repo view:*), Read
 ---
 
 # /update-related-issues
@@ -17,8 +17,10 @@ Update related issues after a PR has been merged. This is a convenience wrapper 
 
 ```
 /update-related-issues 123        # PR number
-/update-related-issues #42        # Issue number (finds associated PR)
+/update-related-issues 42         # Issue number (finds associated PR)
 ```
+
+**Note**: Input must be a numeric PR or issue number (no leading #).
 
 ---
 

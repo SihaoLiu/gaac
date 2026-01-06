@@ -92,8 +92,8 @@ if [ "$NO_ATTRIBUTION" = false ] && [ -f "$CONFIG_HELPER" ]; then
     ATTRIBUTION_PREFIX=$(bash "$CONFIG_HELPER" get "gaac.comment_attribution_prefix" 2>/dev/null || echo "")
 fi
 
-# Skip attribution if prefix is empty, placeholder, or not configured
-if [ -z "$ATTRIBUTION_PREFIX" ] || [[ "$ATTRIBUTION_PREFIX" == "<"* ]] || [[ "$ATTRIBUTION_PREFIX" == "["* && "$ATTRIBUTION_PREFIX" != "*["* ]]; then
+# Skip attribution if prefix is empty or placeholder
+if [ -z "$ATTRIBUTION_PREFIX" ] || [[ "$ATTRIBUTION_PREFIX" == "<"* ]]; then
     ATTRIBUTION_PREFIX=""
 fi
 

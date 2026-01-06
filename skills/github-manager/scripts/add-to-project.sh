@@ -196,7 +196,7 @@ if [ -z "$ITEM_ID" ]; then
     exit 0
 fi
 
-if [ -z "$FIELD_CONFIG" ] || [[ "$FIELD_CONFIG" == "<"* ]] || [[ "$FIELD_CONFIG" == *"="* ]] && [ -z "${FIELD_CONFIG%%,*}" ]; then
+if [ -z "$FIELD_CONFIG" ] || [[ "$FIELD_CONFIG" == "<"* ]]; then
     echo ""
     echo "Done (no field config)"
     exit 0
