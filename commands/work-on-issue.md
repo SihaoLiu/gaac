@@ -407,10 +407,11 @@ Replace `123` with the actual PR number returned by `gh pr create`.
 
 ### 8.1 Update Issue
 
-Add completion comment:
+Add completion comment using post-comment.sh for attribution support:
 
 ```bash
-gh issue comment $1 --body "Implementation complete. PR: #<pr-number>"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/post-comment.sh" \
+    --type issue --number $1 --body "Implementation complete. PR: #<pr-number>"
 ```
 
 ### 8.2 Output Completion Keyword

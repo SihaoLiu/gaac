@@ -258,10 +258,11 @@ Capture issue numbers for dependency linking.
 
 ### 4.2 Update Dependency References
 
-After all issues are created, update issue bodies with correct issue numbers:
+After all issues are created, update issue bodies with correct issue numbers using post-comment.sh:
 
 ```bash
-gh issue comment <number> --body "Dependencies: Depends on #<actual-number>"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/post-comment.sh" \
+    --type issue --number <number> --body "Dependencies: Depends on #<actual-number>"
 ```
 
 ### 4.3 Add to Project Board

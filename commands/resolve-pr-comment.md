@@ -184,8 +184,11 @@ git push
 
 ### 6.1 Add Resolution Comment
 
+Use post-comment.sh for attribution support:
+
 ```bash
-gh pr comment <number> --body "## Review Feedback Addressed
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/post-comment.sh" \
+    --type pr --number <number> --body "## Review Feedback Addressed
 
 Resolved the following comments:
 

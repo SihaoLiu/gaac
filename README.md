@@ -512,6 +512,7 @@ flowchart TB
 | `/work-on-issue <number>` | Implement issue with review loops |
 | `/git-commit [message]` | Create commit with GAAC format |
 | `/resolve-pr-comment [pr]` | Resolve PR review feedback |
+| `/update-related-issues <number>` | Update related issues after PR merge |
 
 ## Skills
 
@@ -549,6 +550,56 @@ The Stop hook uses explicit markers for reliable detection:
 | Issue | `<!-- GAAC_ISSUE: description -->` | Report specific issue |
 
 Example completion: `<gaac-complete>WORK_ON_ISSUE_42_DONE</gaac-complete>`
+
+## Project Board Integration
+
+### Project Field Auto-Fill
+
+When issues are added to the project board, GAAC can automatically set field values:
+
+```
+gaac.project_fields: Status=Todo, Priority=Medium, Effort=S
+```
+
+Supported field types:
+- **Single Select**: Value must match an existing option name
+- **Text**: Any string value
+- **Number**: Numeric value (e.g., `StoryPoints=3`)
+- **Date**: YYYY-MM-DD format
+
+### Comment Attribution
+
+GAAC can add an attribution prefix to all AI-generated issue and PR comments:
+
+```
+gaac.comment_attribution_prefix: *[Comment by Claude Code AI Agent]*
+```
+
+Use `--no-attribution` in scripts to skip the prefix when needed.
+
+## Document Management
+
+The `docs-refactor` skill provides document management capabilities:
+
+| Feature | Script | Description |
+|---------|--------|-------------|
+| Size check | `check-doc-sizes.sh` | Report document sizes |
+| Split | `split-document.sh` | Split large documents |
+| Validate | `validate-links.sh` | Check all internal links |
+| Move/Rename | `move-doc.sh` | Move document with link updates |
+
+### Document Move/Rename
+
+Move or rename a markdown document while automatically updating all links:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/docs-refactor/scripts/move-doc.sh" \
+    --from ./docs/old.md --to ./docs/new.md
+
+# Preview with dry-run
+bash "${CLAUDE_PLUGIN_ROOT}/skills/docs-refactor/scripts/move-doc.sh" \
+    --from ./docs/old.md --to ./docs/new.md --dry-run
+```
 
 ## Prerequisites
 

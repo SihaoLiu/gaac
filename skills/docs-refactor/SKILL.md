@@ -54,6 +54,32 @@ Validate all internal links in documentation:
 bash "${CLAUDE_PLUGIN_ROOT}/skills/docs-refactor/scripts/validate-links.sh"
 ```
 
+### Move/Rename Document
+
+Move or rename a markdown document while updating all links that point to it:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/docs-refactor/scripts/move-doc.sh" \
+    --from ./docs/old-name.md \
+    --to ./docs/new-name.md
+
+# Preview changes without modifying files
+bash "${CLAUDE_PLUGIN_ROOT}/skills/docs-refactor/scripts/move-doc.sh" \
+    --from ./docs/draft/feature.md \
+    --to ./docs/architecture/feature-arch.md \
+    --dry-run
+```
+
+Features:
+- Scans all markdown files in `gaac.docs_paths` for links to the old document
+- Updates relative links to point to the new location
+- Preserves anchors (#section-name) in links
+- Supports dry-run mode to preview changes
+- Creates target directory if needed
+- Suggests running validate-links.sh after completion
+
+**Note**: Only updates links in markdown files within the configured docs paths. Links in code comments or other file types are not updated.
+
 ## Splitting Strategy
 
 ### Principles
@@ -145,6 +171,7 @@ Before creating issues:
 | `scripts/check-doc-sizes.sh` | Report document sizes |
 | `scripts/split-document.sh` | Split large documents |
 | `scripts/validate-links.sh` | Validate markdown links |
+| `scripts/move-doc.sh` | Move/rename documents with link updates |
 
 ## Best Practices
 

@@ -14,6 +14,8 @@ These keys are parsed by GAAC scripts. Keep the `gaac.*:` prefix intact.
 ```
 gaac.repo_url: <git@github.com:org/repo.git or https://github.com/org/repo>
 gaac.project_url: <https://github.com/orgs/ORG/projects/N or https://github.com/users/USER/projects/N>
+gaac.project_fields: Status=Todo, Priority=Medium, Effort=S
+gaac.comment_attribution_prefix: *[Comment by Claude Code AI Agent]*
 gaac.tags.l1: [Core][API][UI][Infra][Docs][Tests]
 gaac.tags.l2: [Auth][Data][Cache][Forms][Users][Settings]
 gaac.tags.l3: [OAuth][JWT][Profile][Validation]
@@ -48,6 +50,54 @@ gaac.models.analyzer_fallback: claude:opus
 **GitHub Repository URL**: [e.g., git@github.com:YourOrg/your-project.git or https://github.com/YourOrg/your-project]
 
 **GitHub Project Board URL**: [e.g., https://github.com/orgs/YourOrg/projects/1 or https://github.com/users/YourName/projects/1]
+
+---
+
+## Project Board Configuration
+
+### Project Field Auto-Fill
+
+When issues are added to the project board, GAAC can automatically set field values. Configure the fields to set:
+
+```
+gaac.project_fields: Status=Todo, Priority=Medium, Effort=S
+```
+
+**Format**: `FieldName=Value, FieldName=Value` (comma-separated)
+
+**Supported field types**:
+- **Single Select**: Value must match an existing option name (case-sensitive)
+- **Text**: Any string value
+- **Number**: Numeric value (e.g., `StoryPoints=3`)
+- **Date**: YYYY-MM-DD format (e.g., `DueDate=2025-01-15`)
+
+**Behavior**:
+- Fields not found in the project are skipped with a warning
+- Values not matching single-select options are skipped with a warning
+- Leave empty to skip auto-fill: `gaac.project_fields:`
+
+---
+
+## Comment Attribution
+
+GAAC can add an attribution prefix to all AI-generated issue and PR comments.
+
+```
+gaac.comment_attribution_prefix: *[Comment by Claude Code AI Agent]*
+```
+
+**Usage**:
+- Set to a prefix string to prepend to all comments
+- Leave empty or use placeholder to disable attribution
+- The prefix is followed by a blank line before the comment body
+
+**Example output**:
+```markdown
+*[Comment by Claude Code AI Agent]*
+
+## Resolved by PR #123
+...
+```
 
 ---
 

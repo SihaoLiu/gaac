@@ -14,6 +14,9 @@
 
 set -euo pipefail
 
+# Script directory for calling sibling scripts
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Parse arguments
 PR_NUMBER=""
 DRY_RUN=false
@@ -202,9 +205,9 @@ ${PR_COMMIT:+**Commit**: \`$PR_COMMIT\`}
         echo "  [DRY RUN] Would add comment and close issue"
         ACTIONS_TAKEN+=("{\"issue\": $issue, \"action\": \"would_close\", \"pr\": $PR_NUMBER}")
     else
-        # Add comment
-        gh issue comment "$issue" --body "$COMMENT" 2>/dev/null || {
-            echo "  ⚠️  Failed to add comment to #$issue"
+        # Add comment using post-comment.sh
+        bash "${SCRIPT_DIR}/post-comment.sh" --type issue --number "$issue" --body "$COMMENT" 2>/dev/null || {
+            echo "  Warning: Failed to add comment to #$issue"
             continue
         }
 
@@ -262,12 +265,12 @@ This may affect or unblock work on this issue.
         echo "  [DRY RUN] Would add progress comment"
         ACTIONS_TAKEN+=("{\"issue\": $issue, \"action\": \"would_comment\", \"pr\": $PR_NUMBER}")
     else
-        gh issue comment "$issue" --body "$COMMENT" 2>/dev/null || {
-            echo "  ⚠️  Failed to add comment to #$issue"
+        bash "${SCRIPT_DIR}/post-comment.sh" --type issue --number "$issue" --body "$COMMENT" 2>/dev/null || {
+            echo "  Warning: Failed to add comment to #$issue"
             continue
         }
 
-        echo "  ✓ Progress comment added to #$issue"
+        echo "  Progress comment added to #$issue"
         ACTIONS_TAKEN+=("{\"issue\": $issue, \"action\": \"commented\", \"pr\": $PR_NUMBER}")
     fi
 done
@@ -319,11 +322,11 @@ This issue may now be unblocked.
             echo "    [DRY RUN] Would notify dependency resolved"
             ACTIONS_TAKEN+=("{\"issue\": $DEP_NUM, \"action\": \"would_notify_unblocked\", \"dependency\": $resolved}")
         else
-            gh issue comment "$DEP_NUM" --body "$COMMENT" 2>/dev/null || {
-                echo "    ⚠️  Failed to notify #$DEP_NUM"
+            bash "${SCRIPT_DIR}/post-comment.sh" --type issue --number "$DEP_NUM" --body "$COMMENT" 2>/dev/null || {
+                echo "    Warning: Failed to notify #$DEP_NUM"
                 continue
             }
-            echo "    ✓ Notified #$DEP_NUM about unblocked dependency"
+            echo "    Notified #$DEP_NUM about unblocked dependency"
             ACTIONS_TAKEN+=("{\"issue\": $DEP_NUM, \"action\": \"notified_unblocked\", \"dependency\": $resolved}")
         fi
     done < <(echo "$CANDIDATE_ISSUES" | jq -c '.[]' 2>/dev/null || true)
@@ -411,15 +414,15 @@ This issue is being automatically closed as all blocking issues are now resolved
                     echo "    [DRY RUN] Would cascade close #$CAND_NUM"
                     ACTIONS_TAKEN+=("{\"issue\": $CAND_NUM, \"action\": \"would_cascade_close\", \"trigger\": $closed_issue}")
                 else
-                    gh issue comment "$CAND_NUM" --body "$COMMENT" 2>/dev/null || {
-                        echo "    ⚠️  Failed to comment on #$CAND_NUM"
+                    bash "${SCRIPT_DIR}/post-comment.sh" --type issue --number "$CAND_NUM" --body "$COMMENT" 2>/dev/null || {
+                        echo "    Warning: Failed to comment on #$CAND_NUM"
                         continue
                     }
                     gh issue close "$CAND_NUM" 2>/dev/null || {
-                        echo "    ⚠️  Failed to close #$CAND_NUM"
+                        echo "    Warning: Failed to close #$CAND_NUM"
                         continue
                     }
-                    echo "    ✓ Cascade closed #$CAND_NUM"
+                    echo "    Cascade closed #$CAND_NUM"
                     CASCADE_CLOSED+=("$CAND_NUM")
                     ACTIONS_TAKEN+=("{\"issue\": $CAND_NUM, \"action\": \"cascade_closed\", \"trigger\": $closed_issue}")
                 fi

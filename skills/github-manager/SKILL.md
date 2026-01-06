@@ -40,6 +40,21 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/add-to-project.sh" \
     --item-number 42
 ```
 
+**Project Field Auto-Fill**: After adding the issue, the script reads `gaac.project_fields` from config and sets field values automatically.
+
+Configure in `gaac.md`:
+```
+gaac.project_fields: Status=Todo, Priority=Medium, Effort=S
+```
+
+Supported field types:
+- **Single Select**: Value must match an existing option name
+- **Text**: Any string value
+- **Number**: Numeric value
+- **Date**: YYYY-MM-DD format
+
+Fields not found or values not matching options are skipped with warnings.
+
 ### Create PR
 
 Create a pull request with the standard template:
@@ -70,6 +85,31 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-commit.sh" \
     --issue 42 \
     --message "Add feature X implementation"
 ```
+
+### Post Comment
+
+Post a comment to an issue or PR with optional attribution prefix:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/post-comment.sh" \
+    --type issue --number 42 --body "Comment text here"
+
+# Or with a file
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/post-comment.sh" \
+    --type pr --number 123 --body-file ./comment.md
+
+# Skip attribution prefix
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/post-comment.sh" \
+    --type issue --number 42 --body "..." --no-attribution
+```
+
+**Comment Attribution**: Reads `gaac.comment_attribution_prefix` from config and prepends it to all comments. Configure in `gaac.md`:
+
+```
+gaac.comment_attribution_prefix: *[Comment by Claude Code AI Agent]*
+```
+
+Use `--no-attribution` to skip the prefix (e.g., for user-triggered actions).
 
 ### Update Related Issues
 
@@ -278,9 +318,10 @@ Wait for reset or use `--cache 1h` for read operations.
 | `SKILL.md` | This documentation |
 | `scripts/create-issue.sh` | Issue creation script |
 | `scripts/create-pr.sh` | PR creation script |
-| `scripts/add-to-project.sh` | Project board integration |
+| `scripts/add-to-project.sh` | Project board integration + field auto-fill |
 | `scripts/get-pr-comments.sh` | Fetch PR comments |
 | `scripts/create-commit.sh` | Git commit creation |
+| `scripts/post-comment.sh` | Post comment with attribution |
 | `scripts/update-related-issues.sh` | Update issues after PR merge |
 | `scripts/merge-pr.sh` | Merge PR with validation |
 | `templates/issue-template.md` | SWE-bench issue format |

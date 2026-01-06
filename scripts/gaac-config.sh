@@ -111,6 +111,12 @@ read_value() {
             gaac.env_setup)
                 natural_key="Environment Setup"
                 ;;
+            gaac.project_fields)
+                natural_key="Project Fields"
+                ;;
+            gaac.comment_attribution_prefix)
+                natural_key="Comment Attribution"
+                ;;
             gaac.tags.l1)
                 natural_key="L1 Tags"
                 ;;
