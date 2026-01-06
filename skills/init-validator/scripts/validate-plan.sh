@@ -9,6 +9,18 @@ set -euo pipefail
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 IMPL_PATTERN="${1:-}"
 
+# Find GAAC plugin root for config helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+CONFIG_HELPER="$PLUGIN_ROOT/scripts/gaac-config.sh"
+
+# Get docs root from config
+if [ -f "$CONFIG_HELPER" ]; then
+    DOCS_ROOT=$(bash "$CONFIG_HELPER" list "gaac.docs_paths" 2>/dev/null | head -1 || echo "docs")
+else
+    DOCS_ROOT="docs"
+fi
+
 if [ -z "$IMPL_PATTERN" ]; then
     echo "❌ Error: No impl file pattern provided"
     echo ""
@@ -62,7 +74,8 @@ echo "Total: $TOTAL_LINES lines across ${#IMPL_FILES[@]} file(s)"
 echo ""
 echo "Checking for architecture anchor files..."
 
-ARCH_FILES=$(find "$PROJECT_ROOT/docs" -name "arch-*.md" -type f 2>/dev/null || true)
+ARCH_DIR="${DOCS_ROOT}/architecture"
+ARCH_FILES=$(find "$PROJECT_ROOT/$ARCH_DIR" -name "arch-*.md" -type f 2>/dev/null || find "$PROJECT_ROOT/$DOCS_ROOT" -name "arch-*.md" -type f 2>/dev/null || true)
 if [ -z "$ARCH_FILES" ]; then
     echo "⚠️  Warning: No arch-*.md files found"
     echo "   Implementation plans should reference architecture documents."

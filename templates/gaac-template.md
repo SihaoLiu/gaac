@@ -13,6 +13,7 @@ gaac.repo_url: <git@github.com:org/repo.git or https://github.com/org/repo>
 gaac.project_url: <https://github.com/orgs/ORG/projects/N or https://github.com/users/USER/projects/N>
 gaac.tags.l1: [Core][API][UI][Infra][Docs][Tests]
 gaac.tags.l2: [Auth][Data][Cache][Forms]
+gaac.tags.l3: [Web][CLI][Mobile][SDK]
 gaac.docs_paths: docs, docs/architecture, docs/draft
 gaac.quick_test: <command to run fast local tests>
 gaac.quick_build: <command to run fast local build>
@@ -33,7 +34,13 @@ gaac.default_branch: main
 
 ## Tag System
 
-GAAC uses a three-level tagging system for organizing issues and PRs: `[Area][SubArea][IssueRef]`
+GAAC uses a three-level tagging system for organizing issues and PRs: `[L1:Area][L2:SubArea][L3:App]`
+
+- **L1 (Area/Component)**: Major functional areas (Core, API, UI, etc.)
+- **L2 (SubArea)**: Specific subsystems within L1 (Auth, Data, Cache, etc.)
+- **L3 (App/Surface)**: Application or surface area (Web, CLI, Mobile, SDK, etc.)
+
+Note: `[Issue #N]` appears in PR titles AFTER the L-tags, not as part of the tag system.
 
 ### Level 1 Tags (Area/Component)
 
@@ -62,14 +69,30 @@ Example for `[Core]`:
 **Your L2 Tags**:
 - [ ] Define your L2 tags here
 
+### Level 3 Tags (App/Surface)
+
+Define application or surface area tags. These identify which user-facing component the change affects.
+
+Example tags:
+- `[Web]` - Web application
+- `[CLI]` - Command-line interface
+- `[Mobile]` - Mobile app
+- `[SDK]` - Client SDK
+- `[Admin]` - Admin interface
+
+**Your L3 Tags**:
+- [ ] Define your L3 tags here
+
 ### File-to-Tag Mapping
 
-Map file paths to L1/L2 tags for automatic tag inference:
+Map file paths to L1/L2/L3 tags for automatic tag inference:
 
 ```
 src/core/**          -> [Core]
 src/api/**           -> [API]
 src/ui/**            -> [UI]
+apps/web/**          -> [Web]
+apps/cli/**          -> [CLI]
 docs/**              -> [Docs]
 tests/**             -> [Tests]
 ```

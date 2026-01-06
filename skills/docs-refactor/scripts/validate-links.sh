@@ -8,6 +8,20 @@ set -euo pipefail
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
+# Find GAAC plugin root for config helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+CONFIG_HELPER="$PLUGIN_ROOT/scripts/gaac-config.sh"
+
+# Get docs paths from config (used if no explicit target specified)
+get_docs_paths() {
+    if [ -f "$CONFIG_HELPER" ]; then
+        bash "$CONFIG_HELPER" list "gaac.docs_paths" 2>/dev/null || echo "docs"
+    else
+        echo "docs"
+    fi
+}
+
 # Parse arguments
 TARGET_DIR="${1:-$PROJECT_ROOT}"
 FIX_MODE=false
@@ -29,6 +43,20 @@ echo "=== Markdown Link Validator ==="
 echo ""
 echo "Scanning: $TARGET_DIR"
 echo ""
+
+# Portable path normalization (works on macOS and Linux)
+normalize_path() {
+    local path="$1"
+    # Use Python if available for robust path normalization
+    if command -v python3 &>/dev/null; then
+        python3 -c "import os.path; print(os.path.normpath('$path'))"
+    elif command -v python &>/dev/null; then
+        python -c "import os.path; print(os.path.normpath('$path'))"
+    else
+        # Basic fallback: just use the path as-is
+        echo "$path"
+    fi
+}
 
 TOTAL_LINKS=0
 BROKEN_FILE_LINKS=0
@@ -104,8 +132,8 @@ while IFS= read -r -d '' file; do
             TARGET_FILE="$file"
         fi
 
-        # Normalize path
-        TARGET_FILE=$(realpath -m "$TARGET_FILE" 2>/dev/null || echo "$TARGET_FILE")
+        # Normalize path (portable, works on macOS)
+        TARGET_FILE=$(normalize_path "$TARGET_FILE")
 
         # Check file exists (if path specified)
         if [ -n "$FILE_PATH" ] && [ ! -f "$TARGET_FILE" ]; then

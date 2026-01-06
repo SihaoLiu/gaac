@@ -37,6 +37,18 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/init-validator/scripts/validate-refine.sh" "$
 
 ## Phase 1: Draft Analysis
 
+### 1.0 Determine Docs Directories
+
+Get docs paths from gaac.md configuration:
+
+```bash
+DOCS_ROOT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" list "gaac.docs_paths" | head -1)
+DOCS_ROOT="${DOCS_ROOT:-docs}"
+DRAFT_DIR="${DOCS_ROOT}/draft"
+ARCH_DIR="${DOCS_ROOT}/architecture"
+mkdir -p "$(pwd)/${DRAFT_DIR}" "$(pwd)/${ARCH_DIR}"
+```
+
 ### 1.1 Read Draft Document
 
 Read the draft document completely using Read tool.
@@ -80,8 +92,8 @@ After initial clarification, run external evaluation:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
     --prompt-file "<prompt with draft + clarifications>" \
-    --context-files "docs/**/*.md" \
-    --output-file "./docs/draft/evaluation_<topic>.md"
+    --context-files "${DOCS_ROOT}/**/*.md" \
+    --output-file "./${DRAFT_DIR}/evaluation_<topic>.md"
 ```
 
 The evaluation should check:
@@ -164,7 +176,7 @@ If arch document exceeds 1500 lines, split it:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/docs-refactor/scripts/split-document.sh" \
-    --input "./docs/architecture/arch-<topic>.md" \
+    --input "./${ARCH_DIR}/arch-<topic>.md" \
     --max-lines 1000
 ```
 
@@ -261,7 +273,7 @@ git checkout -b docs/arch-<topic>-<issue>
 Only commit arch-*.md files (impl-*.md stays unstaged):
 
 ```bash
-git add docs/architecture/arch-*.md
+git add "${ARCH_DIR}/arch-"*.md
 ```
 
 Create commit using github-manager:
@@ -293,21 +305,21 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-pr.sh" \
 
 ### Outputs Created:
 
-1. **Architecture documents**: `docs/architecture/arch-<topic>*.md`
+1. **Architecture documents**: `${ARCH_DIR}/arch-<topic>*.md`
    - Committed and pushed
    - PR created: #<pr-number>
 
-2. **Implementation plans**: `docs/draft/impl-<topic>*.md`
+2. **Implementation plans**: `${DRAFT_DIR}/impl-<topic>*.md`
    - Remain **unstaged** locally
    - Ready for `/plan-arch-to-issues`
 
-3. **Draft document**: `docs/draft/draft-<topic>.md`
+3. **Draft document**: `${DRAFT_DIR}/draft-<topic>.md`
    - Can be archived or deleted
 
 ### Next Steps:
 
 1. Wait for architecture PR review and merge
-2. Run `/plan-arch-to-issues ./docs/draft/impl-*.md` to create implementation issues
+2. Run `/plan-arch-to-issues ./${DRAFT_DIR}/impl-*.md` to create implementation issues
 
 ---
 

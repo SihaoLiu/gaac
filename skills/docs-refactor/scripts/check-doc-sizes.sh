@@ -29,9 +29,25 @@ fi
 # Get documentation paths from gaac.md or use defaults
 DOC_PATHS=("docs" "README.md")
 
-if [ -f "$GAAC_CONFIG" ]; then
-    # Try to extract doc paths from gaac.md
-    # Look for lines under "Documentation Folders" section
+# Find GAAC plugin root for config helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+CONFIG_HELPER="$PLUGIN_ROOT/scripts/gaac-config.sh"
+
+# Use gaac-config.sh if available for reliable config reading
+if [ -f "$CONFIG_HELPER" ]; then
+    CUSTOM_PATHS=$(bash "$CONFIG_HELPER" list "gaac.docs_paths" 2>/dev/null || true)
+    if [ -n "$CUSTOM_PATHS" ]; then
+        DOC_PATHS=()
+        while IFS= read -r path; do
+            path=$(echo "$path" | xargs)  # Trim whitespace
+            if [ -n "$path" ] && [ -e "$PROJECT_ROOT/$path" ]; then
+                DOC_PATHS+=("$path")
+            fi
+        done <<< "$CUSTOM_PATHS"
+    fi
+elif [ -f "$GAAC_CONFIG" ]; then
+    # Fallback: Try to extract doc paths from gaac.md
     CUSTOM_PATHS=$(grep -E "^\s*-\s*\`?[a-zA-Z]" "$GAAC_CONFIG" 2>/dev/null | grep -v "draft" | sed "s/.*\`\([^']*\)\`.*/\1/" | head -10 || echo "")
     if [ -n "$CUSTOM_PATHS" ]; then
         while IFS= read -r path; do
@@ -67,7 +83,8 @@ while IFS= read -r -d '' file; do
     else
         echo -e "${GREEN}OK${NC}: $RELATIVE_PATH ($LINES lines)"
     fi
-done < <(find "$PROJECT_ROOT" \( -path "*/docs/*" -o -name "*.md" \) -name "*.md" -type f -print0 2>/dev/null | head -z -100)
+# Portable approach: limit file count without head -z (not available on macOS)
+done < <(find "$PROJECT_ROOT" \( -path "*/docs/*" -o -name "*.md" \) -name "*.md" -type f -print0 2>/dev/null)
 
 echo ""
 echo "=== Summary ==="

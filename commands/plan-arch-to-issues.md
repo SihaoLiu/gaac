@@ -24,10 +24,10 @@ Run prerequisite check:
 bash "${CLAUDE_PLUGIN_ROOT}/skills/init-validator/scripts/check-prerequisites.sh"
 ```
 
-Validate inputs:
+Validate inputs (use $ARGUMENTS to preserve paths with spaces):
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/init-validator/scripts/validate-plan.sh" "$1"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/init-validator/scripts/validate-plan.sh" "$ARGUMENTS"
 ```
 
 **If validation fails**: Display error and stop.
@@ -36,12 +36,23 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/init-validator/scripts/validate-plan.sh" "$1"
 
 ## Phase 1: Plan Analysis
 
+### 1.0 Determine Docs Directories
+
+Get docs paths from gaac.md configuration:
+
+```bash
+DOCS_ROOT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" list "gaac.docs_paths" | head -1)
+DOCS_ROOT="${DOCS_ROOT:-docs}"
+DRAFT_DIR="${DOCS_ROOT}/draft"
+ARCH_DIR="${DOCS_ROOT}/architecture"
+```
+
 ### 1.1 Read All Implementation Plans
 
 Find and read all matching impl-*.md files:
 
 ```bash
-find docs/draft -name "impl-*.md" -type f
+find "${DRAFT_DIR}" -name "impl-*.md" -type f
 ```
 
 Read each file completely. These may have been split, so read all parts.
@@ -51,7 +62,7 @@ Read each file completely. These may have been split, so read all parts.
 Find and read corresponding arch-*.md files:
 
 ```bash
-find docs/architecture -name "arch-*.md" -type f
+find "${ARCH_DIR}" -name "arch-*.md" -type f
 ```
 
 Architecture documents provide the design context for implementation.

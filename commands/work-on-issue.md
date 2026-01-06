@@ -122,18 +122,22 @@ Create state file for Stop hook integration:
 
 ```bash
 mkdir -p "$CLAUDE_PROJECT_DIR/.claude"
-cat > "$CLAUDE_PROJECT_DIR/.claude/work-on-issue.state" << 'EOF'
+ISSUE_NUM="$1"
+MAX_ITER="${MAX_RALPH_WIGGUM_ITER:-10}"
+cat > "$CLAUDE_PROJECT_DIR/.claude/work-on-issue.state" << EOF
 ---
 active: true
-issue_number: $1
+issue_number: ${ISSUE_NUM}
 phase: implementation
 review_iteration: 0
-max_iterations: ${MAX_RALPH_WIGGUM_ITER:-10}
-completion_keyword: WORK_ON_ISSUE_$1_DONE
+max_iterations: ${MAX_ITER}
+completion_keyword: WORK_ON_ISSUE_${ISSUE_NUM}_DONE
 ---
-Work-on-issue state for #$1
+Work-on-issue state for #${ISSUE_NUM}
 EOF
 ```
+
+**IMPORTANT**: Variables MUST expand in the state file. Use double-quoted heredoc (`<< EOF`), NOT single-quoted (`<< 'EOF'`).
 
 ### 4.2 Implement Changes
 
@@ -313,8 +317,10 @@ gh issue comment $1 --body "Implementation complete. PR: #<pr-number>"
 **IMPORTANT**: Output the completion keyword to signal the Stop hook:
 
 ```
-WORK_ON_ISSUE_$1_DONE
+WORK_ON_ISSUE_<issue-number>_DONE
 ```
+
+For example, for issue #42, output: `WORK_ON_ISSUE_42_DONE`
 
 This tells the Stop hook that the work is complete and allows normal exit.
 

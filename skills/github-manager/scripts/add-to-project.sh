@@ -1,6 +1,8 @@
 #!/bin/bash
 #
-# Add issue/PR to GitHub Project board
+# Add issue to GitHub Project board (ISSUES ONLY)
+# GAAC design: PRs are NOT tracked in the project board.
+# PRs link to issues via "Resolves #N" and inherit their tracking.
 # Parses project URL from gaac.md config
 #
 
@@ -11,16 +13,21 @@ GAAC_CONFIG="$PROJECT_ROOT/.claude/rules/gaac.md"
 
 # Parse arguments
 ITEM_NUMBER=""
-ITEM_TYPE="issue"  # or "pr"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --item-number)
+        --item-number|--issue-number)
             ITEM_NUMBER="$2"
             shift 2
             ;;
         --item-type)
-            ITEM_TYPE="$2"
+            # Legacy argument - check if trying to add PR
+            if [ "$2" = "pr" ]; then
+                echo "❌ Error: PRs should NOT be added to the project board." >&2
+                echo "   GAAC design: Only issues are tracked in the project." >&2
+                echo "   PRs link to issues via 'Resolves #N' syntax." >&2
+                exit 1
+            fi
             shift 2
             ;;
         *)
@@ -35,8 +42,8 @@ done
 
 # Validate
 if [ -z "$ITEM_NUMBER" ]; then
-    echo "❌ Error: Item number required" >&2
-    echo "Usage: add-to-project.sh --item-number 42 [--item-type issue|pr]" >&2
+    echo "❌ Error: Issue number required" >&2
+    echo "Usage: add-to-project.sh --issue-number 42" >&2
     exit 1
 fi
 
@@ -102,24 +109,20 @@ fi
 
 echo "Project ID: $PROJECT_ID"
 
-# Get item node ID
-echo "Fetching item node ID..."
+# Get issue node ID
+echo "Fetching issue node ID..."
 
-if [ "$ITEM_TYPE" = "issue" ]; then
-    ITEM_NODE_ID=$(gh issue view "$ITEM_NUMBER" --json id --jq '.id' 2>/dev/null || echo "")
-else
-    ITEM_NODE_ID=$(gh pr view "$ITEM_NUMBER" --json id --jq '.id' 2>/dev/null || echo "")
-fi
+ITEM_NODE_ID=$(gh issue view "$ITEM_NUMBER" --json id --jq '.id' 2>/dev/null || echo "")
 
 if [ -z "$ITEM_NODE_ID" ]; then
-    echo "❌ Error: Could not get $ITEM_TYPE #$ITEM_NUMBER node ID" >&2
+    echo "❌ Error: Could not get issue #$ITEM_NUMBER node ID" >&2
     exit 1
 fi
 
-echo "Item node ID: $ITEM_NODE_ID"
+echo "Issue node ID: $ITEM_NODE_ID"
 
-# Add item to project
-echo "Adding $ITEM_TYPE #$ITEM_NUMBER to project..."
+# Add issue to project
+echo "Adding issue #$ITEM_NUMBER to project..."
 
 RESULT=$(gh api graphql -f query='
     mutation($project: ID!, $content: ID!) {
@@ -130,11 +133,11 @@ RESULT=$(gh api graphql -f query='
 
 if echo "$RESULT" | grep -q '"item"'; then
     ITEM_ID=$(echo "$RESULT" | jq -r '.data.addProjectV2ItemByContentId.item.id')
-    echo "✓ Successfully added $ITEM_TYPE #$ITEM_NUMBER to project"
+    echo "✓ Successfully added issue #$ITEM_NUMBER to project"
     echo "  Project item ID: $ITEM_ID"
 else
     if echo "$RESULT" | grep -qi "already exists"; then
-        echo "ℹ️  $ITEM_TYPE #$ITEM_NUMBER is already in the project"
+        echo "ℹ️  Issue #$ITEM_NUMBER is already in the project"
     else
         echo "❌ Error adding to project:" >&2
         echo "$RESULT" >&2

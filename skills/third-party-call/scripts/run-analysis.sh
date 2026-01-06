@@ -132,7 +132,11 @@ else
     EXIT_CODE=$?
 fi
 
-rm -f "$FULL_PROMPT_FILE"
+# Cleanup function to remove temp file
+cleanup() {
+    rm -f "$FULL_PROMPT_FILE"
+}
+trap cleanup EXIT
 
 if [ $EXIT_CODE -ne 0 ]; then
     echo "❌ $TOOL execution failed (exit code: $EXIT_CODE)" >&2

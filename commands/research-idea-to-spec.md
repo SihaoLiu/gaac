@@ -24,10 +24,10 @@ Run prerequisite check:
 bash "${CLAUDE_PLUGIN_ROOT}/skills/init-validator/scripts/check-prerequisites.sh"
 ```
 
-Validate input argument:
+Validate input argument (use $ARGUMENTS to preserve multi-word input):
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/init-validator/scripts/validate-research.sh" "$1"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/init-validator/scripts/validate-research.sh" "$ARGUMENTS"
 ```
 
 **If validation fails**: Display error and stop.
@@ -45,11 +45,18 @@ If input is a file path (ends with `.md` or starts with `./` or `/`):
 If input is text:
 - Use the text directly as the idea description
 
-### 1.2 Create Working Directory
+### 1.2 Determine Docs Directory
+
+Get docs paths from gaac.md configuration:
 
 ```bash
-mkdir -p "$(pwd)/docs/draft"
+DOCS_ROOT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" list "gaac.docs_paths" | head -1)
+DOCS_ROOT="${DOCS_ROOT:-docs}"
+DRAFT_DIR="${DOCS_ROOT}/draft"
+mkdir -p "$(pwd)/${DRAFT_DIR}"
 ```
+
+All draft files will be created in `${DRAFT_DIR}/`.
 
 ### 1.3 Generate Topic Slug
 
@@ -68,7 +75,7 @@ If `gemini` is available, run web research for prior art and best practices:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-web-research.sh" \
     --topic "<idea summary for web search>" \
-    --output-file "./docs/draft/research_web_<topic>.md"
+    --output-file "./${DRAFT_DIR}/research_web_<topic>.md"
 ```
 
 If gemini is not available, use WebSearch and WebFetch tools directly.
@@ -117,8 +124,8 @@ Generate creative proposals based on all gathered research. Consider:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-web-research.sh" \
     --topic "Design approaches for: <idea>" \
-    --context "./docs/draft/research_web_<topic>.md" \
-    --output-file "./docs/draft/proposal_gemini_<topic>.md"
+    --context "./${DRAFT_DIR}/research_web_<topic>.md" \
+    --output-file "./${DRAFT_DIR}/proposal_gemini_<topic>.md"
 ```
 
 ### 3.2 Critical Review
@@ -136,7 +143,7 @@ Run independent analysis to synthesize proposals and criticism:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
     --prompt-file "<temp prompt with proposals and critique>" \
-    --output-file "./docs/draft/analysis_<topic>.md"
+    --output-file "./${DRAFT_DIR}/analysis_<topic>.md"
 ```
 
 If external tools fail, perform synthesis internally.
@@ -161,7 +168,7 @@ If **Abandon**: Clean up and exit.
 
 ### 4.1 Create Draft Document
 
-Generate `draft-<topic>.md` in the documentation folder (from gaac.md config, default: `docs/draft/`).
+Generate `draft-<topic>.md` in `${DRAFT_DIR}/` (determined from gaac.md configuration in Phase 1.2).
 
 Draft structure:
 ```markdown
@@ -250,9 +257,9 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/add-to-project.sh" \
 Present summary to user:
 
 ### Outputs Created:
-1. **Draft document**: `docs/draft/draft-<topic>.md` (unstaged)
+1. **Draft document**: `${DRAFT_DIR}/draft-<topic>.md` (unstaged)
 2. **GitHub Issue**: #<number> - tracking this research
-3. **Research artifacts**: (in docs/draft/, can be deleted)
+3. **Research artifacts**: (in `${DRAFT_DIR}/`, can be deleted)
 
 ### Next Steps:
 - Review the draft document

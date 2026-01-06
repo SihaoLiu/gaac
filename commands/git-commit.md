@@ -1,7 +1,7 @@
 ---
 description: Create a git commit following GAAC format with proper tags and issue references
 argument-hint: [commit message]
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(gh issue view:*), Read, Write, Glob
+allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/create-commit.sh:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(gh issue view:*), Read, Write, Glob
 ---
 
 # /git-commit
@@ -135,7 +135,15 @@ If nothing staged: Exit with message.
 
 ### 4.3 Create Commit
 
-Use HEREDOC for proper formatting:
+Use the github-manager create-commit.sh script for consistent formatting:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-commit.sh" \
+    --message "<composed commit message>" \
+    --issue <issue-number-if-applicable>
+```
+
+Or manually with HEREDOC for proper formatting:
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -194,8 +202,8 @@ Claude analyzes diff and proposes: `[UI][Forms][#15] Add validation to login for
 
 ## Notes
 
-- This command wraps the github-manager skill
-- Tags are inferred from file paths
-- Issue reference is inferred from branch name
-- Message follows GAAC commit format
-- Uses HEREDOC for multi-line messages
+- This command uses the `github-manager/scripts/create-commit.sh` skill
+- Tags are inferred from file paths using gaac.md mappings
+- Issue reference is inferred from branch name (e.g., `issue-42-*` → `#42`)
+- Message follows GAAC commit format from `references/commit-format.md`
+- Uses HEREDOC for multi-line messages to preserve formatting
