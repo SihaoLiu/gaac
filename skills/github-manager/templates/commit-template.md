@@ -24,7 +24,7 @@ Issue: #N
 - **L2 Tag**: Optional - sub-area within L1 (e.g., `[Auth]`, `[Cache]`, `[Forms]`)
 - **L3 Tag**: Optional - specific focus within L2
 - **Issue Ref**: `[Issue #N]` - optional for commits, required for PR titles
-- **Multiple Issues**: `[Issue #789,#456]` - when resolving multiple issues
+- **Multiple Issues**: `[L1][Issue #789,#456]` - rare, for chicken-egg dependencies only (L1 still required)
 
 ### Subject Line
 

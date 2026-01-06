@@ -33,12 +33,11 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-issue.sh" \
 
 ### Add to Project
 
-Add an issue or PR to the GitHub Project board:
+Add an issue to the GitHub Project board (PRs are NOT added - they link to issues via `Resolves #N`):
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/add-to-project.sh" \
-    --item-number 42 \
-    --item-type issue
+    --item-number 42
 ```
 
 ### Create PR

@@ -171,7 +171,7 @@ EOF
 )"
 ```
 
-Note: For multiple issues, use format `[Issue #789,#456]`
+Note: For multiple issues (rare, chicken-egg dependencies only), use `[L1][Issue #789,#456]`
 
 ---
 
