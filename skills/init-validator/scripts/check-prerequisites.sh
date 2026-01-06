@@ -46,16 +46,28 @@ fi
 echo ""
 
 # ========================================
-# Optional Tools
+# Optional Tools (at least codex or claude required for code review)
 # ========================================
 
 echo "Checking optional tools..."
 
-# Check codex (for peer-check)
+# Track if at least one external AI tool is available
+EXTERNAL_TOOL_AVAILABLE=false
+
+# Check codex (preferred for code review)
 if command -v codex &>/dev/null; then
-    echo "  ✓ codex: available (for peer-check)"
+    echo "  ✓ codex: available (preferred for code review)"
+    EXTERNAL_TOOL_AVAILABLE=true
 else
-    WARNINGS+=("codex not found. Peer-check will fall back to claude CLI.")
+    echo "  - codex: not found"
+fi
+
+# Check claude CLI (fallback for code review)
+if command -v claude &>/dev/null; then
+    echo "  ✓ claude: available (fallback for code review)"
+    EXTERNAL_TOOL_AVAILABLE=true
+else
+    echo "  - claude: not found"
 fi
 
 # Check gemini (for web research)
@@ -65,11 +77,9 @@ else
     WARNINGS+=("gemini not found. Web-enhanced research will be skipped.")
 fi
 
-# Check claude CLI
-if command -v claude &>/dev/null; then
-    echo "  ✓ claude: available"
-else
-    ERRORS+=("claude CLI not found. Required for fallback operations.")
+# Warn if no external AI tool available
+if [ "$EXTERNAL_TOOL_AVAILABLE" = false ]; then
+    WARNINGS+=("No external AI tools (codex, claude) available. Code review will be limited to self-check only.")
 fi
 
 echo ""
@@ -111,6 +121,15 @@ else
                 WARNINGS+=("$key may not be configured in gaac.md")
             fi
         done
+
+        # Check tag system configuration
+        echo "  Checking tag system..."
+        TAGS_L1=$(bash "$CONFIG_HELPER" get "gaac.tags.l1" 2>/dev/null || true)
+        if [ -n "$TAGS_L1" ] && [ "$TAGS_L1" != "MISSING" ] && [[ "$TAGS_L1" == *"["* ]]; then
+            echo "    ✓ gaac.tags.l1: configured"
+        else
+            WARNINGS+=("gaac.tags.l1 not configured - tag inference will use defaults")
+        fi
     else
         # Fallback to pattern matching
         GAAC_CONTENT=$(cat "$GAAC_CONFIG")

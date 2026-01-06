@@ -123,7 +123,7 @@ The `/work-on-issue` command includes Ralph-Wiggum style iteration for the revie
 
 ### Configuration
 
-- `MAX_RALPH_WIGGUM_ITER` environment variable (default: 10)
+- `MAX_RALPH_WIGGUM_ITER` environment variable (default: 50)
 - Session isolation via `CLAUDE_SESSION_ID`
 
 ### Structured Markers
@@ -179,6 +179,17 @@ gaac/
 │   └── gaac-template.md      # Configuration template
 └── README.md
 ```
+
+## What GAAC Does NOT Replace
+
+The GAAC plugin provides methodology and commands, but does NOT replace your project's:
+
+- **`.claude/rules/`**: Your project-specific rules and context (including gaac.md)
+- **`CLAUDE.md`**: Project-level instructions and memories
+- **`settings.json`**: Local IDE/Claude settings
+- **Project hooks/**: Any project-specific hooks (GAAC hooks are additive)
+
+GAAC is a methodology layer on top of your existing Claude Code setup. The `gaac.md` configuration file must live in your project's `.claude/rules/` directory.
 
 ## Design Principles
 

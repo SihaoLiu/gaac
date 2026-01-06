@@ -2,6 +2,9 @@
 
 > **IMPORTANT**: Copy this file to `.claude/rules/gaac.md` in your project and configure the values below.
 
+> **Note**: This file lives in YOUR project's `.claude/rules/` directory, not in the GAAC plugin.
+> The GAAC plugin provides commands and skills; project-specific configuration stays here in your repository.
+
 ---
 
 ## Machine-Readable Keys (Required)
@@ -14,11 +17,24 @@ gaac.project_url: <https://github.com/orgs/ORG/projects/N or https://github.com/
 gaac.tags.l1: [Core][API][UI][Infra][Docs][Tests]
 gaac.tags.l2: [Auth][Data][Cache][Forms][Users][Settings]
 gaac.tags.l3: [OAuth][JWT][Profile][Validation]
+gaac.file_mappings: src/core/**:[Core], src/api/**:[API], docs/**:[Docs], tests/**:[Tests]
 gaac.docs_paths: docs, docs/architecture, docs/draft
 gaac.quick_test: <command to run fast local tests>
 gaac.quick_build: <command to run fast local build>
 gaac.default_branch: main
+gaac.merge_strategy: squash
+
+# Model Configuration (for three-agent debate and code review)
+gaac.models.code_reviewer: codex:gpt-5.2-codex:xhigh
+gaac.models.code_reviewer_fallback: claude:opus
+gaac.models.proposer: claude:sonnet
+gaac.models.proposer_secondary: gemini:gemini-3-pro-preview
+gaac.models.checker: claude:opus
+gaac.models.analyzer: codex:gpt-5.2-codex:xhigh
+gaac.models.analyzer_fallback: claude:opus
 ```
+
+**File Mappings Format**: `pattern:[Tag], pattern:[Tag]` - Maps file paths to L1 tags for automatic inference. New mappings are auto-appended when unmatched paths are encountered.
 
 ---
 
@@ -225,7 +241,7 @@ Commands needed to set up the development environment:
 
 Maximum iterations for the review loop in `/work-on-issue`:
 
-**MAX_RALPH_WIGGUM_ITER**: `10` (default, can be overridden via environment variable)
+**MAX_RALPH_WIGGUM_ITER**: `50` (default, can be overridden via environment variable)
 
 ### Structured Markers (Stop Hook Detection)
 

@@ -13,7 +13,7 @@ Refine a draft specification into complete architecture documents and implementa
 - Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "unknown"`
 - Current branch: !`git branch --show-current`
 - Draft file: $1
-- Issue number: $2
+- Issue number: $2 (or auto-created in Phase 0.5 if not provided)
 
 ---
 
@@ -32,6 +32,65 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/init-validator/scripts/validate-refine.sh" "$
 ```
 
 **If validation fails**: Display error and stop.
+
+---
+
+## Phase 0.5: Auto-Create Issue (if not provided)
+
+If no issue number was provided, automatically create one from the draft:
+
+### 0.5.1 Extract Issue Details from Draft
+
+Read the draft file and extract:
+- **Title**: Use draft filename or first heading
+- **Summary**: First paragraph or section
+
+```bash
+# Extract topic from filename
+DRAFT_BASENAME=$(basename "$1" .md)
+TOPIC_NAME=$(echo "$DRAFT_BASENAME" | sed 's/^draft-//' | tr '-' ' ' | sed 's/\b\(.\)/\u\1/g')
+
+# Read first heading as potential title
+FIRST_HEADING=$(grep -m1 '^#' "$1" | sed 's/^#* *//')
+ISSUE_TITLE="${FIRST_HEADING:-Architecture: $TOPIC_NAME}"
+```
+
+### 0.5.2 Create Issue
+
+```bash
+ISSUE_URL=$(bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-issue.sh" \
+    --title "[Docs] $ISSUE_TITLE" \
+    --body "## Problem Statement
+
+This issue tracks the architecture refinement for: $TOPIC_NAME
+
+## Source Draft
+
+See: \`$1\`
+
+## Acceptance Criteria
+
+- [ ] Architecture document created and reviewed
+- [ ] Implementation plan generated
+- [ ] Ready for /plan-arch-to-issues
+
+---
+*Created automatically by /refine-spec-to-arch*" \
+    --labels "documentation,architecture")
+
+# Extract issue number from URL
+ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+echo "Created issue #$ISSUE_NUMBER: $ISSUE_URL"
+```
+
+### 0.5.3 Add to Project Board
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/add-to-project.sh" \
+    --item-number "$ISSUE_NUMBER"
+```
+
+**Store the issue number for later phases** (use $ISSUE_NUMBER instead of $2).
 
 ---
 
@@ -67,9 +126,13 @@ Extract and list:
 
 ### 1.3 Check Related Context
 
-If issue number provided, fetch issue details:
+Fetch issue details (using stored $ISSUE_NUMBER from Phase 0.5 or provided $2):
 ```bash
-gh issue view $2 --json title,body,comments
+# Use ISSUE_NUMBER from Phase 0.5 if auto-created, otherwise use $2
+ISSUE_NUM="${ISSUE_NUMBER:-$2}"
+if [ -n "$ISSUE_NUM" ]; then
+    gh issue view "$ISSUE_NUM" --json title,body,comments
+fi
 ```
 
 Search for related documentation and code.
@@ -282,8 +345,9 @@ git add "${ARCH_DIR}/arch-"*.md
 Create commit using github-manager:
 
 ```bash
+# Use ISSUE_NUM from Phase 1.3
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-commit.sh" \
-    --issue $2 \
+    --issue "$ISSUE_NUM" \
     --message "Add architecture document for <feature>"
 ```
 
@@ -297,10 +361,11 @@ Create PR for architecture review:
 
 ```bash
 # Use L1/L2 from gaac.md; [Issue #N] required for PR titles
+# Use ISSUE_NUM from Phase 1.3
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-pr.sh" \
-    --title "[Docs][Issue #$2] <Feature> architecture" \
+    --title "[Docs][Issue #$ISSUE_NUM] <Feature> architecture" \
     --body-file "<pr body with summary>" \
-    --resolves $2
+    --resolves "$ISSUE_NUM"
 ```
 
 ---

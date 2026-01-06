@@ -109,59 +109,93 @@ Use Task tool with `subagent_type=Explore` to understand:
 
 ---
 
-## Phase 3: Three-Party Discussion
+## Phase 3: Three-Party Discussion (Proposer-Checker-Analyzer)
 
-Implement multi-perspective analysis using proposer-checker-analyzer pattern.
+Implement multi-perspective analysis using a formal proposer-checker-analyzer debate pattern.
 
-### 3.1 Creative Proposal (Parallel)
+**Model Configuration** (from gaac.md):
+- `gaac.models.proposer`: claude:sonnet (primary)
+- `gaac.models.proposer_secondary`: gemini:gemini-3-pro-preview (optional)
+- `gaac.models.checker`: claude:opus (single checker)
+- `gaac.models.analyzer`: codex:gpt-5.2-codex:xhigh → claude:opus (fallback)
 
-**Claude Proposer** (main context):
-Generate creative proposals based on all gathered research. Consider:
+### 3.1 Proposer Stage (Parallel)
+
+**Claude Proposer** (Sonnet - main context):
+Generate creative proposals based on all gathered research. Output to `./${DRAFT_DIR}/proposer_claude_<topic>.md`:
 - Multiple implementation approaches
 - Trade-offs and alternatives
 - Integration with existing architecture
 - Potential risks and mitigations
 
-**Gemini Proposer** (if available):
+**Gemini Proposer** (optional, if available):
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-web-research.sh" \
-    --topic "Design approaches for: <idea>" \
-    --context "./${DRAFT_DIR}/research_web_<topic>.md" \
-    --output-file "./${DRAFT_DIR}/proposal_gemini_<topic>.md"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
+    --role proposer \
+    --prompt "Design approaches for: <idea summary>" \
+    --context-files "./${DRAFT_DIR}/research_*.md" \
+    --output-file "./${DRAFT_DIR}/proposer_gemini_<topic>.md"
 ```
 
-### 3.2 Critical Review
+Note: If Gemini is not available, skip this step. The Claude proposer is sufficient.
 
-Review all proposals critically:
-- Fact-check claims against codebase reality
-- Identify potential issues or conflicts
-- Challenge assumptions
-- Note unclear or incomplete aspects
+### 3.2 Checker Stage (Critical Review)
 
-### 3.3 Independent Analysis
+Run the critical checker (Claude Opus) to evaluate combined proposer outputs:
 
-Run independent analysis to synthesize proposals and criticism:
+```bash
+# Combine proposer outputs
+cat ./${DRAFT_DIR}/proposer_*_<topic>.md > ./${DRAFT_DIR}/combined_proposals_<topic>.md
+
+# Run critical checker with CHECKER_PROMPT
+bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
+    --role checker \
+    --prompt-file "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/prompts/CHECKER_PROMPT.md" \
+    --context-files "./${DRAFT_DIR}/combined_proposals_<topic>.md" \
+    --output-file "./${DRAFT_DIR}/checker_<topic>.md"
+```
+
+The checker will:
+- Verify claims against evidence
+- Find logical flaws in proposals
+- Challenge unstated assumptions
+- Classify issues as: CRITICAL FLAWS, SIGNIFICANT CONCERNS, MINOR OBSERVATIONS, UNVERIFIED CLAIMS
+
+**If checker finds CRITICAL FLAWS**: Address them before proceeding.
+
+### 3.3 Analyzer Stage (Independent Synthesis)
+
+Run independent analyzer (Codex xhigh preferred, Claude Opus fallback) to synthesize all inputs:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
-    --prompt-file "<temp prompt with proposals and critique>" \
+    --role analyzer \
+    --prompt "Synthesize the proposals and checker critique into a coherent recommendation.
+              Resolve conflicts, incorporate valid criticisms, and provide a clear direction.
+              Output a structured recommendation with rationale." \
+    --context-files "./${DRAFT_DIR}/combined_proposals_<topic>.md,./${DRAFT_DIR}/checker_<topic>.md" \
     --output-file "./${DRAFT_DIR}/analysis_<topic>.md"
 ```
 
-If external tools fail, perform synthesis internally.
+If external tools fail, perform synthesis internally using the current context.
 
 ### 3.4 User Review Gate
 
 Present synthesized analysis to user using AskUserQuestion:
 
-**Question**: "Based on the research and analysis, here is the proposed direction. Do you want to proceed?"
+**Summary to present**:
+- Key recommendation from analyzer
+- Critical issues identified by checker (if any)
+- Unresolved concerns
+
+**Question**: "Based on the three-party analysis, here is the proposed direction. Do you want to proceed?"
 
 **Options**:
 1. **Proceed** - Continue to draft specification
 2. **Revise** - Provide feedback for another round
 3. **Abandon** - Stop the workflow
 
-If **Revise**: Incorporate feedback and repeat Phase 3.
+If **Revise**: Incorporate feedback and repeat from Phase 3.1.
 If **Abandon**: Clean up and exit.
 
 ---

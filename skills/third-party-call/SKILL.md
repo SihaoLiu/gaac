@@ -62,6 +62,44 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-peer-check.sh" \
     --output-file ./peer-review.md
 ```
 
+### Run Code Review (Independent Scoring)
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-code-review.sh" \
+    --issue-number 42 \
+    --output-file ./code-review.md
+```
+
+Outputs structured markers: `<!-- GAAC_REVIEW_SCORE: NN -->` and `<!-- GAAC_REVIEW_ASSESSMENT: ... -->`
+
+## Role-Based Model Configuration
+
+Model configuration is read from `gaac.md`. The `--role` parameter determines which model config to use:
+
+| Role | gaac.md Key | Default | Purpose |
+|------|-------------|---------|---------|
+| `analyzer` | `gaac.models.analyzer` | `codex:gpt-5.2-codex:xhigh` | Synthesis and analysis |
+| `analyzer` (fallback) | `gaac.models.analyzer_fallback` | `claude:opus` | Fallback for analyzer |
+| `checker` | `gaac.models.checker` | `claude:opus` | Critical checking |
+| `proposer` | `gaac.models.proposer` | `claude:sonnet` | Creative proposals |
+
+**Usage:**
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
+    --role analyzer \
+    --prompt-file ./prompt.md \
+    --output-file ./output.md
+```
+
+**Model Config Format:** `tool:model:reasoning` (e.g., `codex:gpt-5.2-codex:xhigh`)
+
+## Prompts
+
+| Prompt | Purpose |
+|--------|---------|
+| `prompts/CODE_REVIEWER_PROMPT.md` | 100-point scoring rubric for code review |
+| `prompts/CHECKER_PROMPT.md` | Critical checker for proposer-checker-analyzer debates |
+
 ## Tool Configurations
 
 ### Codex (Preferred for Analysis)
@@ -202,9 +240,12 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
 |------|---------|
 | `SKILL.md` | This documentation |
 | `scripts/check-tools.sh` | Detect available tools |
-| `scripts/run-analysis.sh` | General analysis wrapper |
+| `scripts/run-analysis.sh` | General analysis wrapper with role-based config |
 | `scripts/run-web-research.sh` | Gemini web research |
-| `scripts/run-peer-check.sh` | Code review via external model |
+| `scripts/run-peer-check.sh` | Quick feedback via external model |
+| `scripts/run-code-review.sh` | Independent scoring review (mandatory) |
+| `prompts/CODE_REVIEWER_PROMPT.md` | 100-point scoring rubric |
+| `prompts/CHECKER_PROMPT.md` | Critical checker for debates |
 
 ## Best Practices
 

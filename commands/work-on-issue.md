@@ -13,7 +13,7 @@ Complete end-to-end workflow to resolve a GitHub issue. Includes test-driven dev
 - Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "unknown"`
 - Current branch: !`git branch --show-current`
 - Issue number: $1
-- Max iterations: !`echo "${MAX_RALPH_WIGGUM_ITER:-10}"`
+- Max iterations: !`echo "${MAX_RALPH_WIGGUM_ITER:-50}"`
 
 ---
 
@@ -108,9 +108,14 @@ This ensures clear acceptance criteria.
 ### 3.2 Run Initial Tests
 
 ```bash
-# Run test command from gaac.md config
-# Tests should fail at this point
+# Run quick test command from gaac.md config
+# Tests should fail at this point (TDD approach)
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" run-quick-test || {
+    echo "Tests failed (expected for TDD)"
+}
 ```
+
+If `gaac.quick_test` is not configured, ask user what test command to use.
 
 ---
 
@@ -123,7 +128,7 @@ Create state file for Stop hook integration:
 ```bash
 mkdir -p "$CLAUDE_PROJECT_DIR/.claude"
 ISSUE_NUM="$1"
-MAX_ITER="${MAX_RALPH_WIGGUM_ITER:-10}"
+MAX_ITER="${MAX_RALPH_WIGGUM_ITER:-50}"
 SESSION_ID="${CLAUDE_SESSION_ID:-$(date +%s)}"
 cat > "$CLAUDE_PROJECT_DIR/.claude/work-on-issue.state" << EOF
 ---
@@ -156,9 +161,19 @@ Follow the approved plan:
 After implementation:
 ```bash
 # Run quick test command from gaac.md
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" run-quick-test
 ```
 
-Verify tests pass.
+If tests fail, fix the issues before proceeding to Phase 5.
+
+### 4.3.1 Run Build (optional)
+
+If `gaac.quick_build` is configured:
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" run-quick-build
+```
+
+Verify tests pass and build succeeds.
 
 ### 4.4 Size Monitoring
 
@@ -200,7 +215,7 @@ If INCOMPLETE: List what's missing and fix.
 
 ### 5.2 Peer-Check (External Model)
 
-Run external code review:
+Run external code review for quick feedback:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-peer-check.sh" \
@@ -212,39 +227,53 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-peer-check.sh" \
 
 If NEEDS_WORK: Review findings, fix issues, repeat from 5.1.
 
-### 5.3 Final Self-Review
+### 5.3 Code-Reviewer (Independent Scoring) - MANDATORY
 
-After peer-check passes:
+After peer-check passes, run the independent code-reviewer for formal scoring:
 
-Perform comprehensive review covering:
-- Correctness against issue requirements
-- Edge case handling
-- Error handling
-- Security considerations
-- Performance implications
-
-Assign a score (0-100). Target: >= 81.
-
-**IMPORTANT**: Output the review score using structured marker for reliable detection:
-
-```
-<!-- GAAC_REVIEW_SCORE: 85 -->
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-code-review.sh" \
+    --issue-number $1 \
+    --output-file ".claude/code-review-$1.md"
 ```
 
-If there are issues to fix, you can optionally output structured issue markers:
+This stage:
+- Uses external model (codex preferred, claude fallback)
+- Applies the 100-point scoring rubric
+- Outputs structured markers for stop hook detection
 
-```
-<!-- GAAC_ISSUE: Missing error handling in function X -->
-<!-- GAAC_ISSUE: Test coverage below 80% for module Y -->
-```
+**Scoring Categories:**
+- Code Quality: 25 points
+- Correctness & Logic: 25 points
+- Security & Safety: 20 points
+- Performance & Efficiency: 15 points
+- Testing & Documentation: 15 points
+
+**Assessment Mapping:**
+- 90-100: "Approve"
+- 81-89: "Approve with Minor Suggestion"
+- 70-80: "Major changes needed"
+- 0-69: "Reject"
+
+**Requirements to Pass:**
+- Score >= 81
+- Assessment = "Approve" OR "Approve with Minor Suggestion"
+
+If code-review outputs issues, fix them and repeat from 5.1.
 
 ### 5.4 Review Result
 
-**If all stages pass (score >= 81):**
+**If all stages pass (score >= 81 AND assessment is Approve/Approve with Minor):**
 
 Update state file:
 ```bash
 echo "phase: review_passed" >> "$CLAUDE_PROJECT_DIR/.claude/work-on-issue.state"
+```
+
+Output the structured markers:
+```
+<!-- GAAC_REVIEW_SCORE: 85 -->
+<!-- GAAC_REVIEW_ASSESSMENT: Approve with Minor Suggestion -->
 ```
 
 Proceed to Phase 6.
@@ -382,7 +411,7 @@ The `/work-on-issue` command integrates with the Stop hook to create automatic r
 3. Hook blocks exit and sends failure reason back with extracted issues
 4. Claude continues with fixes
 5. When review passes, completion keyword signals success
-6. Max iterations prevents infinite loops (default: 10)
+6. Max iterations prevents infinite loops (default: 50)
 
 ### Structured Markers for Reliable Detection
 

@@ -2,12 +2,17 @@
 #
 # Create git commit with GAAC format
 # Follows project conventions and adds proper metadata
+# Uses gaac-config.sh for tag inference and auto-appends new mappings
 #
 
 set -euo pipefail
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 GAAC_CONFIG="$PROJECT_ROOT/.claude/rules/gaac.md"
+
+# Find config helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_HELPER="${SCRIPT_DIR}/../../../scripts/gaac-config.sh"
 
 # Parse arguments
 ISSUE=""
@@ -64,12 +69,37 @@ fi
 # Get changed files for L1/L2 inference
 CHANGED_FILES=$(git diff --cached --name-only)
 
-# Try to infer L1/L2 tags from changed files if gaac.md exists
+# Try to infer L1 tag from changed files using gaac-config.sh
 L1_TAG=""
 L2_TAG=""
+INFERRED_FROM=""
+NEW_MAPPING_NEEDED=false
 
-if [ -f "$GAAC_CONFIG" ]; then
-    # Simple inference based on common patterns
+if [ -f "$GAAC_CONFIG" ] && [ -f "$CONFIG_HELPER" ]; then
+    # Get the first changed file to infer tag
+    FIRST_FILE=$(echo "$CHANGED_FILES" | head -1)
+    if [ -n "$FIRST_FILE" ]; then
+        INFERRED=$(bash "$CONFIG_HELPER" infer-tag "$FIRST_FILE" 2>/dev/null || echo "")
+        if [ -n "$INFERRED" ]; then
+            # Extract tag name from [Tag] format
+            L1_TAG=$(echo "$INFERRED" | tr -d '[]')
+            INFERRED_FROM="$FIRST_FILE"
+
+            # Check if this was from file mappings or heuristics
+            MAPPINGS=$(bash "$CONFIG_HELPER" get-file-mappings 2>/dev/null || echo "")
+            if [ -z "$MAPPINGS" ] || ! echo "$MAPPINGS" | grep -q "$L1_TAG"; then
+                # Heuristic inference - consider auto-appending
+                # Get the base directory of the first file for the pattern
+                BASE_DIR=$(dirname "$FIRST_FILE" | cut -d'/' -f1-2)
+                if [ -n "$BASE_DIR" ] && [ "$BASE_DIR" != "." ]; then
+                    NEW_MAPPING_NEEDED=true
+                    NEW_PATTERN="${BASE_DIR}/**"
+                fi
+            fi
+        fi
+    fi
+else
+    # Fallback: Simple inference if config helper not available
     if echo "$CHANGED_FILES" | grep -qE "^docs/"; then
         L1_TAG="Docs"
     elif echo "$CHANGED_FILES" | grep -qE "^tests?/"; then
@@ -132,6 +162,13 @@ echo ""
 echo "✓ Commit created: $SHORT_HASH"
 echo "  Full hash: $COMMIT_HASH"
 
+# Auto-append new file mapping if needed
+if [ "$NEW_MAPPING_NEEDED" = true ] && [ -n "${NEW_PATTERN:-}" ] && [ -n "$L1_TAG" ]; then
+    echo ""
+    echo "Auto-appending file mapping: ${NEW_PATTERN}:[$L1_TAG]"
+    bash "$CONFIG_HELPER" append-file-mapping "$NEW_PATTERN" "[$L1_TAG]" 2>/dev/null || true
+fi
+
 # Output JSON for programmatic use
 echo ""
 echo "JSON_OUTPUT:"
@@ -140,4 +177,6 @@ jq -n \
     --arg short "$SHORT_HASH" \
     --arg message "$COMMIT_MSG" \
     --arg issue "${ISSUE:-null}" \
-    '{commit_hash: $hash, short_hash: $short, message: $message, issue: $issue}'
+    --arg inferred_tag "${L1_TAG:-null}" \
+    --arg mapping_added "${NEW_MAPPING_NEEDED}" \
+    '{commit_hash: $hash, short_hash: $short, message: $message, issue: $issue, inferred_tag: $inferred_tag, mapping_added: ($mapping_added == "true")}'

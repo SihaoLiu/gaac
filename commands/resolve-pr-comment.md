@@ -123,13 +123,17 @@ Track with TodoWrite. For each comment:
 
 After making changes:
 ```bash
-# Run quick tests from gaac.md
+# Run quick test command from gaac.md
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" run-quick-test
 ```
+
+If tests fail, fix the issues before proceeding.
 
 ### 4.2 Build Check
 
 ```bash
-# Run incremental build
+# Run quick build command from gaac.md (if configured)
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" run-quick-build 2>/dev/null || echo "Build not configured"
 ```
 
 ### 4.3 Self-Review

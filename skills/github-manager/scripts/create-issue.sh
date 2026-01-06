@@ -76,26 +76,28 @@ else
 "
 fi
 
-# Build gh issue create command
-CMD="gh issue create --title"
-CMD="$CMD \"$TITLE\""
-CMD="$CMD --body \"\$BODY\""
-
+# Build label arguments array for proper handling of multiple labels
+LABEL_ARGS=()
 if [ -n "$LABELS" ]; then
     # Convert comma-separated labels to multiple --label flags
     IFS=',' read -ra LABEL_ARRAY <<< "$LABELS"
     for label in "${LABEL_ARRAY[@]}"; do
-        CMD="$CMD --label \"$label\""
+        label=$(echo "$label" | xargs)  # Trim whitespace
+        if [ -n "$label" ]; then
+            LABEL_ARGS+=("--label" "$label")
+        fi
     done
 fi
 
+# Build assignee argument
+ASSIGNEE_ARGS=()
 if [ -n "$ASSIGNEE" ]; then
-    CMD="$CMD --assignee $ASSIGNEE"
+    ASSIGNEE_ARGS=("--assignee" "$ASSIGNEE")
 fi
 
 # Create the issue
 echo "Creating issue: $TITLE"
-ISSUE_URL=$(gh issue create --title "$TITLE" --body "$BODY" ${LABELS:+--label "$LABELS"} ${ASSIGNEE:+--assignee "$ASSIGNEE"})
+ISSUE_URL=$(gh issue create --title "$TITLE" --body "$BODY" "${LABEL_ARGS[@]}" "${ASSIGNEE_ARGS[@]}")
 
 if [ -n "$ISSUE_URL" ]; then
     # Extract issue number from URL

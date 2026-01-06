@@ -71,6 +71,40 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-commit.sh" \
     --message "Add feature X implementation"
 ```
 
+### Update Related Issues
+
+Update related issues after PR merge:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/update-related-issues.sh" \
+    --pr 123
+```
+
+Features:
+- Parses PR for `Resolves #N`, `Fixes #N`, `Closes #N` patterns
+- Adds completion comment and closes resolved issues
+- Notifies related issues (`Related: #N`, `See: #N`) with progress comment
+- Discovers and notifies dependent issues (`Depends on: #N`)
+- Supports `--dry-run` for preview mode
+
+### Merge PR
+
+Merge a PR with validation and configurable strategy:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/merge-pr.sh" \
+    --pr 123 \
+    --strategy squash
+```
+
+Features:
+- Validates PR is ready to merge (non-draft, open, no conflicts)
+- Checks CI status (fails if checks failing, warns if pending)
+- Reads merge strategy from gaac.md (`gaac.merge_strategy`), default: squash
+- Supports `--force` to bypass pending CI checks
+- Deletes branch after merge
+- Outputs JSON summary for programmatic use
+
 ## Templates
 
 ### Issue Template (SWE-Bench Format)
@@ -247,6 +281,8 @@ Wait for reset or use `--cache 1h` for read operations.
 | `scripts/add-to-project.sh` | Project board integration |
 | `scripts/get-pr-comments.sh` | Fetch PR comments |
 | `scripts/create-commit.sh` | Git commit creation |
+| `scripts/update-related-issues.sh` | Update issues after PR merge |
+| `scripts/merge-pr.sh` | Merge PR with validation |
 | `templates/issue-template.md` | SWE-bench issue format |
 | `templates/pr-template.md` | PR body template |
 | `templates/commit-template.md` | Commit message format |

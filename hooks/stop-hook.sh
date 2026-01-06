@@ -47,7 +47,7 @@ SESSION_ID=$(echo "$FRONTMATTER" | grep '^session_id:' | sed 's/session_id: *//'
 
 # Default values
 ITERATION="${ITERATION:-0}"
-MAX_ITERATIONS="${MAX_ITERATIONS:-10}"
+MAX_ITERATIONS="${MAX_ITERATIONS:-50}"
 
 # If not active, allow exit
 if [ "$ACTIVE" != "true" ]; then
@@ -70,7 +70,7 @@ if [[ ! "$ITERATION" =~ ^[0-9]+$ ]]; then
 fi
 
 if [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
-    MAX_ITERATIONS=10
+    MAX_ITERATIONS=50
 fi
 
 # Check max iterations
@@ -142,43 +142,70 @@ if echo "$LAST_OUTPUT" | grep -qE 'GAAC_REVIEW_SCORE:[[:space:]]*[0-9]+'; then
     REVIEW_SCORE=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_REVIEW_SCORE:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | tail -1 || echo "")
 fi
 
+# Pattern 2b: Structured review assessment marker
+# Format: <!-- GAAC_REVIEW_ASSESSMENT: Approve with Minor Suggestion -->
+REVIEW_ASSESSMENT=""
+if echo "$LAST_OUTPUT" | grep -qE 'GAAC_REVIEW_ASSESSMENT:'; then
+    REVIEW_ASSESSMENT=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_REVIEW_ASSESSMENT:[^>-]+' | sed 's/GAAC_REVIEW_ASSESSMENT:[[:space:]]*//' | sed 's/[[:space:]]*$//' | tail -1 || echo "")
+fi
+
 # Fallback: Try to extract from natural language (less reliable)
 if [ -z "$REVIEW_SCORE" ]; then
     if echo "$LAST_OUTPUT" | grep -qiE "self-review.*score|review score|final score"; then
-        # More specific pattern to avoid false matches
         REVIEW_SCORE=$(echo "$LAST_OUTPUT" | grep -iE "self-review.*score|review score|final score" | grep -oE '[0-9]+/100|score[[:space:]]*:?[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -1 || echo "")
     fi
 fi
 
+# Valid assessments for passing
+VALID_ASSESSMENTS="Approve|Approve with Minor Suggestion"
+
+# Check if review passes: score >= 81 AND assessment is valid
+SCORE_PASSES=false
+ASSESSMENT_PASSES=false
+
 if [ -n "$REVIEW_SCORE" ] && [ "$REVIEW_SCORE" -ge 81 ] 2>/dev/null; then
+    SCORE_PASSES=true
+fi
+
+if [ -n "$REVIEW_ASSESSMENT" ] && echo "$REVIEW_ASSESSMENT" | grep -qE "^($VALID_ASSESSMENTS)$"; then
+    ASSESSMENT_PASSES=true
+fi
+
+# Require BOTH score >= 81 AND valid assessment
+if [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ]; then
     # Also need to check if PR was created
     if echo "$LAST_OUTPUT" | grep -qiE "pr.*created|created.*pr|pull request.*#[0-9]+|gh pr create.*success"; then
         REVIEW_PASSED=true
-        echo "GAAC: Review passed (score $REVIEW_SCORE >= 81) and PR created" >&2
+        echo "GAAC: Review passed (score $REVIEW_SCORE >= 81, assessment: $REVIEW_ASSESSMENT) and PR created" >&2
     fi
 fi
 
 # Pattern 3: Structured PR created marker
 # Format: <!-- GAAC_PR_CREATED: 123 -->
+PR_NUMBER=""
 if echo "$LAST_OUTPUT" | grep -qE 'GAAC_PR_CREATED:[[:space:]]*[0-9]+'; then
     PR_NUMBER=$(echo "$LAST_OUTPUT" | grep -oE 'GAAC_PR_CREATED:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | tail -1 || echo "")
-    if [ -n "$PR_NUMBER" ] && [ -n "$REVIEW_SCORE" ] && [ "$REVIEW_SCORE" -ge 81 ] 2>/dev/null; then
+    if [ -n "$PR_NUMBER" ] && [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ]; then
         REVIEW_PASSED=true
-        echo "GAAC: Review passed (score $REVIEW_SCORE) with PR #$PR_NUMBER" >&2
+        echo "GAAC: Review passed (score $REVIEW_SCORE, assessment: $REVIEW_ASSESSMENT) with PR #$PR_NUMBER" >&2
     fi
 fi
 
-# Pattern 4: Phase completion markers
-if echo "$LAST_OUTPUT" | grep -qiE "phase 6.*complete|phase 7.*complete|phase 8.*complete|commit.*success.*push|pushed.*remote.*success"; then
-    REVIEW_PASSED=true
-    echo "GAAC: Phase completion marker detected" >&2
+# Pattern 4: Phase completion markers (only if score and assessment are valid)
+if [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ]; then
+    if echo "$LAST_OUTPUT" | grep -qiE "phase 6.*complete|phase 7.*complete|phase 8.*complete|commit.*success.*push|pushed.*remote.*success"; then
+        REVIEW_PASSED=true
+        echo "GAAC: Phase completion marker detected (score $REVIEW_SCORE, assessment: $REVIEW_ASSESSMENT)" >&2
+    fi
 fi
 
-# Pattern 5: All acceptance criteria checked with tests passing
-if echo "$LAST_OUTPUT" | grep -qiE "all acceptance criteria.*met|acceptance criteria:.*\[x\].*\[x\]"; then
-    if echo "$LAST_OUTPUT" | grep -qiE "tests.*pass|all tests.*pass|test suite.*pass"; then
-        REVIEW_PASSED=true
-        echo "GAAC: Acceptance criteria and tests passed" >&2
+# Pattern 5: All acceptance criteria + tests (only if score and assessment are valid)
+if [ "$SCORE_PASSES" = true ] && [ "$ASSESSMENT_PASSES" = true ]; then
+    if echo "$LAST_OUTPUT" | grep -qiE "all acceptance criteria.*met|acceptance criteria:.*\[x\].*\[x\]"; then
+        if echo "$LAST_OUTPUT" | grep -qiE "tests.*pass|all tests.*pass|test suite.*pass"; then
+            REVIEW_PASSED=true
+            echo "GAAC: Acceptance criteria and tests passed (score $REVIEW_SCORE, assessment: $REVIEW_ASSESSMENT)" >&2
+        fi
     fi
 fi
 
@@ -244,6 +271,33 @@ if [ -n "$REVIEW_SCORE" ] && [ "$REVIEW_SCORE" -lt 81 ] 2>/dev/null; then
 \`\`\`
 $CODE_REVIEW_ISSUES
 \`\`\`"
+fi
+
+# Check for assessment not passing (even if score >= 81)
+if [ -n "$REVIEW_ASSESSMENT" ] && ! echo "$REVIEW_ASSESSMENT" | grep -qE "^(Approve|Approve with Minor Suggestion)$"; then
+    ISSUES="${ISSUES}
+
+### Assessment Not Passing
+**Assessment**: $REVIEW_ASSESSMENT
+**Score**: ${REVIEW_SCORE:-unknown}/100
+
+The assessment must be 'Approve' or 'Approve with Minor Suggestion' to pass.
+Current assessment indicates issues that need to be addressed."
+fi
+
+# Check for missing assessment (score exists but no assessment)
+if [ -n "$REVIEW_SCORE" ] && [ "$REVIEW_SCORE" -ge 81 ] 2>/dev/null && [ -z "$REVIEW_ASSESSMENT" ]; then
+    ISSUES="${ISSUES}
+
+### Missing Assessment Marker
+**Score**: $REVIEW_SCORE/100 (meets threshold)
+
+The code-reviewer must output an assessment marker. Please run the code-reviewer:
+\`\`\`
+bash \"\${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-code-review.sh\" --issue-number $ISSUE_NUMBER
+\`\`\`
+
+Expected output: \`<!-- GAAC_REVIEW_ASSESSMENT: Approve -->\` or \`<!-- GAAC_REVIEW_ASSESSMENT: Approve with Minor Suggestion -->\`"
 fi
 
 # Check for test failures

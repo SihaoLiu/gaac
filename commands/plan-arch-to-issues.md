@@ -50,12 +50,35 @@ ARCH_DIR=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" arch-dir _)
 ARCH_DIR="${ARCH_DIR:-${DOCS_ROOT}/architecture}"
 ```
 
-### 1.1 Read All Implementation Plans
+### 1.1 Locate Implementation Plan(s)
 
-Find and read all matching impl-*.md files:
+Find implementation plan files. If user provided a path/pattern, use it; otherwise scan DRAFT_DIR:
 
 ```bash
-find "${DRAFT_DIR}" -name "impl-*.md" -type f
+# User can provide specific path(s) or pattern(s)
+if [ -n "$ARGUMENTS" ]; then
+    # Check if it's a file path
+    if [ -f "$ARGUMENTS" ]; then
+        IMPL_FILES="$ARGUMENTS"
+    # Check if it's a directory
+    elif [ -d "$ARGUMENTS" ]; then
+        IMPL_FILES=$(find "$ARGUMENTS" -name "impl-*.md" -type f 2>/dev/null)
+    # Try as a glob pattern
+    else
+        IMPL_FILES=$(find . -path "$ARGUMENTS" -name "impl-*.md" 2>/dev/null || ls $ARGUMENTS 2>/dev/null || echo "")
+    fi
+else
+    # Default: scan DRAFT_DIR
+    IMPL_FILES=$(find "${DRAFT_DIR}" -name "impl-*.md" -type f 2>/dev/null)
+fi
+
+if [ -z "$IMPL_FILES" ]; then
+    echo "No implementation plan files found"
+    exit 1
+fi
+
+echo "Found implementation plans:"
+echo "$IMPL_FILES"
 ```
 
 Read each file completely. These may have been split, so read all parts.

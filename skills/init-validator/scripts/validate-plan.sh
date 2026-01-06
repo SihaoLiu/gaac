@@ -32,17 +32,29 @@ if [ -z "$IMPL_PATTERN" ]; then
     exit 1
 fi
 
-# Find matching impl files
+# Find matching impl files based on input type
 IMPL_FILES=()
-while IFS= read -r -d '' file; do
-    IMPL_FILES+=("$file")
-done < <(find "$PROJECT_ROOT" -path "$IMPL_PATTERN" -type f -print0 2>/dev/null || true)
 
-# Fallback: try glob expansion
-if [ ${#IMPL_FILES[@]} -eq 0 ]; then
-    shopt -s nullglob
-    IMPL_FILES=($IMPL_PATTERN)
-    shopt -u nullglob
+# Check if input is an existing file
+if [ -f "$IMPL_PATTERN" ]; then
+    IMPL_FILES+=("$IMPL_PATTERN")
+# Check if input is a directory
+elif [ -d "$IMPL_PATTERN" ]; then
+    while IFS= read -r -d '' file; do
+        IMPL_FILES+=("$file")
+    done < <(find "$IMPL_PATTERN" -name "impl-*.md" -type f -print0 2>/dev/null || true)
+# Try as a path pattern
+else
+    while IFS= read -r -d '' file; do
+        IMPL_FILES+=("$file")
+    done < <(find "$PROJECT_ROOT" -path "$IMPL_PATTERN" -type f -print0 2>/dev/null || true)
+
+    # Fallback: try glob expansion
+    if [ ${#IMPL_FILES[@]} -eq 0 ]; then
+        shopt -s nullglob
+        IMPL_FILES=($IMPL_PATTERN)
+        shopt -u nullglob
+    fi
 fi
 
 if [ ${#IMPL_FILES[@]} -eq 0 ]; then

@@ -8,6 +8,13 @@
 #   gaac-config.sh require <key>    - Get value (error if not found)
 #   gaac-config.sh list <key>       - Get comma-separated values as lines
 #   gaac-config.sh exists <key>     - Exit 0 if key exists, 1 otherwise
+#   gaac-config.sh get-tags <level> - Get L1/L2/L3 tags as array
+#   gaac-config.sh get-file-mappings - Get file-to-tag mappings
+#   gaac-config.sh append-tag <level> <tag> - Add new tag to L1/L2/L3
+#   gaac-config.sh append-file-mapping <pattern> <tag> - Add new file mapping
+#   gaac-config.sh run-quick-test   - Execute gaac.quick_test command
+#   gaac-config.sh run-quick-build  - Execute gaac.quick_build command
+#   gaac-config.sh infer-tag <file-path> - Infer tag from file path
 #
 
 set -euo pipefail
@@ -231,6 +238,139 @@ case "$COMMAND" in
         ;;
     arch-dir)
         find_arch_dir
+        ;;
+    get-tags)
+        # Get tags for a specific level (l1, l2, l3)
+        LEVEL="${KEY:-l1}"
+        TAG_KEY="gaac.tags.${LEVEL}"
+        value=$(read_value "$TAG_KEY")
+        if [ -z "$value" ]; then
+            exit 0
+        fi
+        # Extract tags from [Tag1][Tag2] format
+        echo "$value" | grep -oE '\[[^]]+\]' | tr -d '[]' | sort -u
+        ;;
+    get-file-mappings)
+        # Get file-to-tag mappings
+        # Format: pattern:[Tag], pattern:[Tag]
+        value=$(read_value "gaac.file_mappings")
+        if [ -z "$value" ]; then
+            # Return empty - no mappings configured
+            exit 0
+        fi
+        # Output as: pattern TAB tag
+        echo "$value" | tr ',' '\n' | sed 's/^[[:space:]]*//' | while read -r mapping; do
+            if [[ "$mapping" =~ ^([^:]+):(\[.+\])$ ]]; then
+                pattern="${BASH_REMATCH[1]}"
+                tag="${BASH_REMATCH[2]}"
+                echo -e "${pattern}\t${tag}"
+            fi
+        done
+        ;;
+    append-tag)
+        # Append a new tag to L1/L2/L3
+        LEVEL="$KEY"
+        TAG="${3:-}"
+        if [ -z "$TAG" ]; then
+            echo "Usage: gaac-config.sh append-tag <level> <tag>" >&2
+            exit 2
+        fi
+        TAG_KEY="gaac.tags.${LEVEL}"
+        current=$(read_value "$TAG_KEY")
+        # Check if tag already exists
+        if echo "$current" | grep -qF "[$TAG]"; then
+            echo "Tag [$TAG] already exists in $TAG_KEY"
+            exit 0
+        fi
+        # Append tag
+        new_value="${current}[${TAG}]"
+        # Update in file
+        if grep -qE "^[[:space:]]*${TAG_KEY}:" "$CONFIG_FILE"; then
+            sed -i "s|^\([[:space:]]*${TAG_KEY}:\).*|\1 ${new_value}|" "$CONFIG_FILE"
+            echo "Appended [$TAG] to $TAG_KEY"
+        else
+            echo "$TAG_KEY: $new_value" >> "$CONFIG_FILE"
+            echo "Added $TAG_KEY: $new_value"
+        fi
+        ;;
+    append-file-mapping)
+        # Append a new file-to-tag mapping
+        PATTERN="$KEY"
+        TAG="${3:-}"
+        if [ -z "$TAG" ]; then
+            echo "Usage: gaac-config.sh append-file-mapping <pattern> <tag>" >&2
+            exit 2
+        fi
+        current=$(read_value "gaac.file_mappings")
+        # Check if pattern already exists
+        if echo "$current" | grep -qF "$PATTERN:"; then
+            echo "Pattern '$PATTERN' already has a mapping"
+            exit 0
+        fi
+        # Append mapping
+        if [ -n "$current" ]; then
+            new_value="${current}, ${PATTERN}:${TAG}"
+        else
+            new_value="${PATTERN}:${TAG}"
+        fi
+        # Update in file
+        if grep -qE "^[[:space:]]*gaac\.file_mappings:" "$CONFIG_FILE"; then
+            sed -i "s|^\([[:space:]]*gaac\.file_mappings:\).*|\1 ${new_value}|" "$CONFIG_FILE"
+            echo "Appended mapping: $PATTERN:$TAG"
+        else
+            echo "gaac.file_mappings: $new_value" >> "$CONFIG_FILE"
+            echo "Added gaac.file_mappings: $new_value"
+        fi
+        ;;
+    infer-tag)
+        # Infer tag from file path using configured mappings
+        FILE_PATH="$KEY"
+        if [ -z "$FILE_PATH" ]; then
+            echo "Usage: gaac-config.sh infer-tag <file-path>" >&2
+            exit 2
+        fi
+        # First check file mappings
+        while IFS=$'\t' read -r pattern tag; do
+            [ -z "$pattern" ] && continue
+            # Convert glob pattern to regex
+            regex=$(echo "$pattern" | sed 's/\*\*/.*/' | sed 's/\*/.*/g')
+            if [[ "$FILE_PATH" =~ $regex ]]; then
+                echo "$tag"
+                exit 0
+            fi
+        done < <(bash "$0" get-file-mappings 2>/dev/null || true)
+        # Fallback to heuristic inference
+        if [[ "$FILE_PATH" =~ ^docs/ ]] || [[ "$FILE_PATH" =~ \.md$ ]]; then
+            echo "[Docs]"
+        elif [[ "$FILE_PATH" =~ ^tests?/ ]] || [[ "$FILE_PATH" =~ _test\. ]] || [[ "$FILE_PATH" =~ \.test\. ]]; then
+            echo "[Tests]"
+        elif [[ "$FILE_PATH" =~ /api/ ]] || [[ "$FILE_PATH" =~ ^api/ ]]; then
+            echo "[API]"
+        elif [[ "$FILE_PATH" =~ /ui/ ]] || [[ "$FILE_PATH" =~ ^ui/ ]] || [[ "$FILE_PATH" =~ /components/ ]]; then
+            echo "[UI]"
+        elif [[ "$FILE_PATH" =~ /infra/ ]] || [[ "$FILE_PATH" =~ ^infra/ ]] || [[ "$FILE_PATH" =~ /deploy/ ]]; then
+            echo "[Infra]"
+        else
+            echo "[Core]"
+        fi
+        ;;
+    run-quick-test)
+        CMD=$(read_value "gaac.quick_test")
+        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
+            echo "ERROR: gaac.quick_test not configured" >&2
+            exit 1
+        fi
+        echo "Running: $CMD"
+        eval "$CMD"
+        ;;
+    run-quick-build)
+        CMD=$(read_value "gaac.quick_build")
+        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
+            echo "ERROR: gaac.quick_build not configured" >&2
+            exit 1
+        fi
+        echo "Running: $CMD"
+        eval "$CMD"
         ;;
     *)
         echo "Unknown command: $COMMAND" >&2
