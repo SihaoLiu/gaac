@@ -12,7 +12,7 @@ Merge a pull request with validation checks (non-draft, CI green) and update all
 
 - Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "unknown"`
 - PR number: $1
-- Merge strategy: !`bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" get "gaac.merge_strategy" 2>/dev/null || echo "squash"`
+- Merge strategy: Configured in gaac.md (default: squash)
 
 ---
 
