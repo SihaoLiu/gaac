@@ -21,6 +21,9 @@ gaac.file_mappings: src/core/**:[Core], src/api/**:[API], docs/**:[Docs], tests/
 gaac.docs_paths: docs, docs/architecture, docs/draft
 gaac.quick_test: <command to run fast local tests>
 gaac.quick_build: <command to run fast local build>
+gaac.full_test: <command to run complete test suite>
+gaac.lint: <command to run linter/formatter (optional)>
+gaac.env_setup: <command to setup dev environment (optional)>
 gaac.default_branch: main
 gaac.merge_strategy: squash
 
@@ -197,41 +200,75 @@ Command for quick incremental builds during development:
 
 ### Quick Test
 
-Command to run a fast test suite (unit tests, quick smoke tests):
+Command to run a fast test suite (unit tests, quick smoke tests). Used during TDD implementation:
 
 ```bash
-# Example: make test-unit, npm test, cargo test
+# Example: make test-unit, npm test -- --watch, cargo test
 [Your quick test command]
 ```
 
-### Full Test
+### Full Test (Regression Check)
 
-Command to run the complete test suite:
+Command to run the complete test suite. Used in Phase 5.2a to verify no regressions:
 
 ```bash
 # Example: make test, npm run test:all, cargo test --all-features
 [Your full test command]
 ```
 
-### Lint/Format
+**When it runs**: After peer-check passes, before code-reviewer scoring.
+**Purpose**: Ensure changes don't break existing tests.
 
-Command to check/fix code formatting:
+### Lint/Format (Optional)
+
+Command to check/fix code formatting. Used in Phase 5.5 before commit:
 
 ```bash
 # Example: make lint, npm run lint:fix, cargo fmt && cargo clippy
-[Your lint command]
+[Your lint command - leave blank if not needed]
 ```
+
+**When it runs**: After all reviews pass, before commit.
+**Purpose**: Ensure code follows project formatting standards.
+**Note**: This is optional. Leave blank if your project uses pre-commit hooks or doesn't require linting.
 
 ---
 
 ## Environment Setup
 
-Commands needed to set up the development environment:
+Commands needed to set up the development environment. This is optional but recommended for projects with specific environment requirements:
 
 ```bash
 # Example: source venv/bin/activate, nvm use, module load ./env/project
-[Your environment setup commands]
+[Your environment setup commands - leave blank if not needed]
 ```
+
+**When it runs**: Can be invoked manually via `gaac-config.sh run-env-setup`.
+
+### Session Initialization (Optional)
+
+If your project requires automatic environment setup at the start of each Claude Code session, you can configure a session-init hook in your project's `.claude/settings.local.json`:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "your-env-setup-command"
+      }
+    ]
+  }
+}
+```
+
+**Common use cases**:
+- Loading environment modules: `module load ./env/project`
+- Activating virtual environments: `source .venv/bin/activate`
+- Setting environment variables: `export MY_VAR=value`
+- Running setup scripts: `./scripts/setup-dev.sh`
+
+**Note**: This is project-specific configuration. GAAC doesn't provide a default session-init hook because environment setup varies significantly between projects.
 
 ---
 

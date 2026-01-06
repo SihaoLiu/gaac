@@ -14,6 +14,9 @@
 #   gaac-config.sh append-file-mapping <pattern> <tag> - Add new file mapping
 #   gaac-config.sh run-quick-test   - Execute gaac.quick_test command
 #   gaac-config.sh run-quick-build  - Execute gaac.quick_build command
+#   gaac-config.sh run-full-test    - Execute gaac.full_test command
+#   gaac-config.sh run-lint         - Execute gaac.lint command (optional)
+#   gaac-config.sh run-env-setup    - Execute gaac.env_setup command (optional)
 #   gaac-config.sh infer-tag <file-path> - Infer tag from file path
 #
 
@@ -43,6 +46,9 @@ if [ -z "$COMMAND" ]; then
     echo "  get-file-mappings      - Get file-to-tag mappings"
     echo "  run-quick-test         - Execute gaac.quick_test command"
     echo "  run-quick-build        - Execute gaac.quick_build command"
+    echo "  run-full-test          - Execute gaac.full_test command"
+    echo "  run-lint               - Execute gaac.lint command (optional)"
+    echo "  run-env-setup          - Execute gaac.env_setup command (optional)"
     exit 2
 fi
 
@@ -95,6 +101,15 @@ read_value() {
                 ;;
             gaac.quick_build)
                 natural_key="Incremental Build"
+                ;;
+            gaac.full_test)
+                natural_key="Full Test"
+                ;;
+            gaac.lint)
+                natural_key="Lint.*Format"
+                ;;
+            gaac.env_setup)
+                natural_key="Environment Setup"
                 ;;
             gaac.tags.l1)
                 natural_key="L1 Tags"
@@ -397,6 +412,35 @@ case "$COMMAND" in
         if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
             echo "ERROR: gaac.quick_build not configured" >&2
             exit 1
+        fi
+        echo "Running: $CMD"
+        eval "$CMD"
+        ;;
+    run-full-test)
+        CMD=$(read_value "gaac.full_test")
+        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
+            echo "ERROR: gaac.full_test not configured" >&2
+            exit 1
+        fi
+        echo "Running: $CMD"
+        eval "$CMD"
+        ;;
+    run-lint)
+        CMD=$(read_value "gaac.lint")
+        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
+            # Lint is optional, exit 0 with message
+            echo "SKIP: gaac.lint not configured (optional)"
+            exit 0
+        fi
+        echo "Running: $CMD"
+        eval "$CMD"
+        ;;
+    run-env-setup)
+        CMD=$(read_value "gaac.env_setup")
+        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
+            # Env setup is optional, exit 0 with message
+            echo "SKIP: gaac.env_setup not configured (optional)"
+            exit 0
         fi
         echo "Running: $CMD"
         eval "$CMD"

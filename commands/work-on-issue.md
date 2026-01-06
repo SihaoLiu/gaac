@@ -227,6 +227,26 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-peer-check.sh" \
 
 If NEEDS_WORK: Review findings, fix issues, repeat from 5.1.
 
+### 5.2a Full Test Suite (Regression Check)
+
+After peer-check passes, run the full test suite to ensure no regressions:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" run-full-test
+```
+
+This runs the command configured in `gaac.full_test` (e.g., `make test`, `npm test`, `cargo test --all`).
+
+**Purpose**: Verify that the current changes don't break any existing tests. This catches regressions that quick tests might miss.
+
+**If tests fail**:
+1. Analyze which tests failed
+2. Determine if failure is caused by your changes or pre-existing
+3. Fix the issues
+4. Repeat from 5.1
+
+**If `gaac.full_test` is not configured**: Ask user what command to use, then proceed.
+
 ### 5.3 Code-Reviewer (Independent Scoring) - MANDATORY
 
 After peer-check passes, run the independent code-reviewer for formal scoring:
@@ -283,6 +303,28 @@ Proceed to Phase 6.
 The Stop hook will detect incomplete review and block exit with a reason containing the issues found. This creates the Ralph-Wiggum iteration loop.
 
 Fix the issues and continue (the Stop hook feeds back the prompt).
+
+### 5.5 Lint/Format Check (Optional)
+
+Before committing, run linter/formatter if configured:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/gaac-config.sh" run-lint
+```
+
+This runs the command configured in `gaac.lint` (e.g., `npm run lint:fix`, `cargo fmt && cargo clippy`, `make lint`).
+
+**Purpose**: Ensure code follows project formatting standards before commit.
+
+**If lint fails**:
+1. Review the lint errors/warnings
+2. Fix formatting issues (or apply auto-fix if available)
+3. Verify fixes don't break functionality
+4. Repeat from 5.1 if significant changes were made
+
+**If `gaac.lint` is not configured**: Skip this step (it's optional). The script will output "SKIP" and continue.
+
+**Note**: This step is optional. If your project doesn't use a linter or the linter is run via pre-commit hooks, you can leave `gaac.lint` unconfigured.
 
 ---
 
