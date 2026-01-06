@@ -80,48 +80,88 @@ echo ""
 
 echo "Checking gaac.md configuration..."
 
+# Find GAAC plugin root for config helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+CONFIG_HELPER="$PLUGIN_ROOT/scripts/gaac-config.sh"
+
 if [ ! -f "$GAAC_CONFIG" ]; then
     ERRORS+=("gaac.md not found at $GAAC_CONFIG")
     ERRORS+=("Copy from GAAC plugin: cp <gaac-plugin>/templates/gaac-template.md .claude/rules/gaac.md")
 else
     echo "  ✓ gaac.md exists"
 
-    # Check for required sections
-    GAAC_CONTENT=$(cat "$GAAC_CONFIG")
+    # Check machine-readable keys if config helper is available
+    if [ -f "$CONFIG_HELPER" ]; then
+        echo "  Checking machine-readable keys..."
 
-    # Check GitHub Repository URL
-    if echo "$GAAC_CONTENT" | grep -qE "GitHub Repository URL.*\[|git@github.com:|https://github.com/"; then
-        echo "  ✓ GitHub Repository URL: configured"
+        REQUIRED_KEYS=(
+            "gaac.repo_url"
+            "gaac.project_url"
+            "gaac.docs_paths"
+            "gaac.quick_test"
+            "gaac.quick_build"
+        )
+
+        for key in "${REQUIRED_KEYS[@]}"; do
+            value=$(bash "$CONFIG_HELPER" get "$key" 2>/dev/null || true)
+            if [ -n "$value" ] && [ "$value" != "<" ]; then
+                echo "    ✓ $key: configured"
+            else
+                WARNINGS+=("$key may not be configured in gaac.md")
+            fi
+        done
     else
-        WARNINGS+=("GitHub Repository URL may not be configured in gaac.md")
+        # Fallback to pattern matching
+        GAAC_CONTENT=$(cat "$GAAC_CONFIG")
+
+        # Check GitHub Repository URL
+        if echo "$GAAC_CONTENT" | grep -qE "gaac.repo_url:|GitHub Repository URL.*git@|https://github.com/"; then
+            echo "  ✓ GitHub Repository URL: configured"
+        else
+            WARNINGS+=("GitHub Repository URL may not be configured in gaac.md")
+        fi
+
+        # Check GitHub Project URL
+        if echo "$GAAC_CONTENT" | grep -qE "gaac.project_url:|projects/[0-9]+"; then
+            echo "  ✓ GitHub Project URL: configured"
+        else
+            WARNINGS+=("GitHub Project URL may not be configured in gaac.md")
+        fi
+
+        # Check for documentation paths
+        if echo "$GAAC_CONTENT" | grep -qE "gaac.docs_paths:|Documentation Folders|docs/"; then
+            echo "  ✓ Documentation paths: configured"
+        else
+            WARNINGS+=("Documentation paths may not be configured in gaac.md")
+        fi
+
+        # Check for build commands
+        if echo "$GAAC_CONTENT" | grep -qE "gaac.quick_build:|gaac.quick_test:|Incremental Build|make|npm|cargo"; then
+            echo "  ✓ Build commands: configured"
+        else
+            WARNINGS+=("Build commands may not be configured in gaac.md")
+        fi
     fi
 
-    # Check GitHub Project URL
-    if echo "$GAAC_CONTENT" | grep -qE "GitHub Project.*URL|projects/[0-9]+"; then
-        echo "  ✓ GitHub Project URL: configured"
-    else
-        WARNINGS+=("GitHub Project URL may not be configured in gaac.md")
-    fi
-
-    # Check for L1 tags
-    if echo "$GAAC_CONTENT" | grep -qE "\[.*\].*-|Level 1 Tags"; then
-        echo "  ✓ L1 Tags: defined"
-    else
-        WARNINGS+=("L1 Tags may not be defined in gaac.md")
-    fi
-
-    # Check for documentation paths
-    if echo "$GAAC_CONTENT" | grep -qE "Documentation Folders|docs/"; then
-        echo "  ✓ Documentation paths: configured"
-    else
-        WARNINGS+=("Documentation paths may not be configured in gaac.md")
-    fi
-
-    # Check for build commands
-    if echo "$GAAC_CONTENT" | grep -qE "Full Build|Incremental Build|make|npm|cargo"; then
-        echo "  ✓ Build commands: configured"
-    else
-        WARNINGS+=("Build commands may not be configured in gaac.md")
+    # Validate docs paths exist
+    if [ -f "$CONFIG_HELPER" ]; then
+        docs_paths=$(bash "$CONFIG_HELPER" get "gaac.docs_paths" 2>/dev/null || true)
+        if [ -n "$docs_paths" ]; then
+            missing_paths=()
+            while IFS= read -r path; do
+                [ -z "$path" ] && continue
+                path=$(echo "$path" | xargs)  # Trim whitespace
+                if [ ! -d "$PROJECT_ROOT/$path" ]; then
+                    missing_paths+=("$path")
+                fi
+            done < <(echo "$docs_paths" | tr ',' '\n')
+            if [ ${#missing_paths[@]} -gt 0 ]; then
+                WARNINGS+=("Docs paths not found: ${missing_paths[*]}")
+            else
+                echo "  ✓ All docs paths exist"
+            fi
+        fi
     fi
 fi
 

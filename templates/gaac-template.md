@@ -4,6 +4,23 @@
 
 ---
 
+## Machine-Readable Keys (Required)
+
+These keys are parsed by GAAC scripts. Keep the `gaac.*:` prefix intact.
+
+```
+gaac.repo_url: <git@github.com:org/repo.git or https://github.com/org/repo>
+gaac.project_url: <https://github.com/orgs/ORG/projects/N or https://github.com/users/USER/projects/N>
+gaac.tags.l1: [Core][API][UI][Infra][Docs][Tests]
+gaac.tags.l2: [Auth][Data][Cache][Forms]
+gaac.docs_paths: docs, docs/architecture, docs/draft
+gaac.quick_test: <command to run fast local tests>
+gaac.quick_build: <command to run fast local build>
+gaac.default_branch: main
+```
+
+---
+
 ## Project Identity
 
 **Project Name**: [Your Project Name]
