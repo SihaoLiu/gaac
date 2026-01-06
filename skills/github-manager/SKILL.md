@@ -149,7 +149,7 @@ Located at: `templates/commit-template.md`
 Issue: #N
 ```
 
-Note: L1 is required, L2/L3 optional. Multi-issue `[Issue #N,#M]` is rare (chicken-egg dependencies only).
+Note: L1 is required, L2/L3 optional. Multi-issue `[L1][Issue #N,#M]` is rare (chicken-egg dependencies only).
 
 ## Project Board Integration
 
