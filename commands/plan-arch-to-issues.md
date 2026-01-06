@@ -1,7 +1,7 @@
 ---
 description: Convert implementation plans into test-driven GitHub issues
 argument-hint: <impl-*.md file pattern or path>
-allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/init-validator/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/docs-refactor/scripts/*:*), Bash(gh issue view:*), Bash(gh issue create:*), Bash(gh issue list:*), Bash(gh api:*), Read, Write, Glob, Grep, Task, AskUserQuestion, TodoWrite
+allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/init-validator/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/docs-refactor/scripts/*:*), Bash(gh issue view:*), Bash(gh issue create:*), Bash(gh issue list:*), Bash(gh api:*), Read, Write, Glob, Grep, Task, AskUserQuestion, TodoWrite
 ---
 
 # /plan-arch-to-issues

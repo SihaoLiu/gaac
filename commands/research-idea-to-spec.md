@@ -1,7 +1,7 @@
 ---
 description: Transform ideas into draft specifications with multi-source research
 argument-hint: <idea text or markdown file path>
-allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/init-validator/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/third-party-call/scripts/*:*), Bash(gh repo view:*), Bash(gh issue view:*), Bash(gh issue list:*), Bash(gh issue create:*), Bash(gh pr list:*), Bash(gh api:*), Bash(git branch:*), Bash(mkdir -p:*), Bash(cat:*), Bash(date:*), Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, Task, AskUserQuestion, TodoWrite
+allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/init-validator/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/third-party-call/scripts/*:*), Bash(gh repo view:*), Bash(gh issue view:*), Bash(gh issue list:*), Bash(gh issue create:*), Bash(gh pr list:*), Bash(gh api:*), Bash(git branch:*), Bash(mkdir -p:*), Bash(cat:*), Bash(date:*), Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, Task, AskUserQuestion, TodoWrite
 ---
 
 # /research-idea-to-spec

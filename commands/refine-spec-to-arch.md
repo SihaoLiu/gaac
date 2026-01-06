@@ -1,7 +1,7 @@
 ---
 description: Refine draft specifications into architecture documents and implementation plans
 argument-hint: <draft-*.md file path> [issue-number]
-allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/init-validator/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/third-party-call/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/docs-refactor/scripts/*:*), Bash(gh issue view:*), Bash(gh issue comment:*), Bash(gh pr create:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git branch:*), Bash(git checkout:*), Bash(mkdir -p:*), Read, Write, Edit, Glob, Grep, Task, AskUserQuestion, TodoWrite, EnterPlanMode
+allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/init-validator/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/third-party-call/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/docs-refactor/scripts/*:*), Bash(gh issue view:*), Bash(gh issue comment:*), Bash(gh pr create:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git branch:*), Bash(git checkout:*), Bash(mkdir -p:*), Read, Write, Edit, Glob, Grep, Task, AskUserQuestion, TodoWrite, EnterPlanMode
 ---
 
 # /refine-spec-to-arch
