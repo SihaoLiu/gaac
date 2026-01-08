@@ -198,6 +198,11 @@ EOF
 
 echo "Running Codex review for round $CURRENT_ROUND..." >&2
 
+# Debug log files
+CODEX_CMD_FILE="$LOOP_DIR/round-${CURRENT_ROUND}-codex-run.cmd"
+CODEX_STDOUT_FILE="$LOOP_DIR/round-${CURRENT_ROUND}-codex-run.out"
+CODEX_STDERR_FILE="$LOOP_DIR/round-${CURRENT_ROUND}-codex-run.log"
+
 # Source portable timeout if available
 TIMEOUT_SCRIPT="$PLUGIN_ROOT/scripts/portable-timeout.sh"
 if [[ -f "$TIMEOUT_SCRIPT" ]]; then
@@ -218,15 +223,48 @@ else
     }
 fi
 
-# Build Codex command
+# Build Codex command arguments
+# Note: codex exec reads prompt from stdin, writes to stdout, and we use -w to write to file
 CODEX_ARGS=("-m" "$CODEX_MODEL")
 if [[ -n "$CODEX_EFFORT" ]]; then
     CODEX_ARGS+=("-c" "model_reasoning_effort=${CODEX_EFFORT}")
 fi
-CODEX_ARGS+=("--enable" "web_search_request" "-s" "workspace-write" "-o" "$REVIEW_RESULT_FILE" "-C" "$PROJECT_ROOT")
+CODEX_ARGS+=("-a" "full-auto" "-w" "-C" "$PROJECT_ROOT")
+
+# Save the command for debugging
+CODEX_PROMPT_CONTENT=$(cat "$REVIEW_PROMPT_FILE")
+{
+    echo "# Codex invocation debug info"
+    echo "# Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "# Working directory: $PROJECT_ROOT"
+    echo "# Timeout: $CODEX_TIMEOUT seconds"
+    echo ""
+    echo "codex exec ${CODEX_ARGS[*]} \"<prompt>\""
+    echo ""
+    echo "# Prompt content:"
+    echo "$CODEX_PROMPT_CONTENT"
+} > "$CODEX_CMD_FILE"
+
+echo "Codex command saved to: $CODEX_CMD_FILE" >&2
+echo "Running codex exec with timeout ${CODEX_TIMEOUT}s..." >&2
 
 CODEX_EXIT_CODE=0
-run_with_timeout "$CODEX_TIMEOUT" codex exec "${CODEX_ARGS[@]}" < "$REVIEW_PROMPT_FILE" 2>/dev/null || CODEX_EXIT_CODE=$?
+run_with_timeout "$CODEX_TIMEOUT" codex exec "${CODEX_ARGS[@]}" "$CODEX_PROMPT_CONTENT" \
+    > "$CODEX_STDOUT_FILE" 2> "$CODEX_STDERR_FILE" || CODEX_EXIT_CODE=$?
+
+echo "Codex exit code: $CODEX_EXIT_CODE" >&2
+echo "Codex stdout saved to: $CODEX_STDOUT_FILE" >&2
+echo "Codex stderr saved to: $CODEX_STDERR_FILE" >&2
+
+# Check if Codex created the review result file (it should write to workspace)
+# If not, check if it wrote to stdout
+if [[ ! -f "$REVIEW_RESULT_FILE" ]]; then
+    # Codex might have written output to stdout instead
+    if [[ -s "$CODEX_STDOUT_FILE" ]]; then
+        echo "Codex output found in stdout, copying to review result file..." >&2
+        cp "$CODEX_STDOUT_FILE" "$REVIEW_RESULT_FILE"
+    fi
+fi
 
 # ========================================
 # Check Codex Output
@@ -235,18 +273,34 @@ run_with_timeout "$CODEX_TIMEOUT" codex exec "${CODEX_ARGS[@]}" < "$REVIEW_PROMP
 if [[ ! -f "$REVIEW_RESULT_FILE" ]]; then
     echo "Error: Codex did not create review result file" >&2
 
+    # Read stderr for error details
+    STDERR_CONTENT=""
+    if [[ -f "$CODEX_STDERR_FILE" ]]; then
+        STDERR_CONTENT=$(tail -50 "$CODEX_STDERR_FILE" 2>/dev/null || echo "(unable to read stderr)")
+    fi
+
     REASON="# Codex Review Failed
 
 The Codex review process failed to produce output.
 
-**Error**: Review result file was not created: $REVIEW_RESULT_FILE
 **Exit Code**: $CODEX_EXIT_CODE
+**Review Result File**: $REVIEW_RESULT_FILE (not created)
 
-Please try again. The system will attempt another review when you exit."
+**Debug Files**:
+- Command: $CODEX_CMD_FILE
+- Stdout: $CODEX_STDOUT_FILE
+- Stderr: $CODEX_STDERR_FILE
+
+**Stderr (last 50 lines)**:
+\`\`\`
+$STDERR_CONTENT
+\`\`\`
+
+Please check the debug files for more details. The system will attempt another review when you exit."
 
     jq -n \
         --arg reason "$REASON" \
-        --arg msg "Loop: Codex review failed for round $CURRENT_ROUND" \
+        --arg msg "Loop: Codex review failed for round $CURRENT_ROUND (exit code: $CODEX_EXIT_CODE)" \
         '{
             "decision": "block",
             "reason": $reason,

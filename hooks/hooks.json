@@ -10,7 +10,8 @@
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/loop-codex-stop-hook.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/loop-codex-stop-hook.sh",
+            "timeout": 3600
           }
         ]
       }
