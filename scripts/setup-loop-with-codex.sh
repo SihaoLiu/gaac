@@ -17,7 +17,7 @@ set -euo pipefail
 # Default Codex model and reasoning effort
 DEFAULT_CODEX_MODEL="gpt-5.2-codex"
 DEFAULT_CODEX_EFFORT="xhigh"
-DEFAULT_MAX_ITERATIONS=10
+DEFAULT_MAX_ITERATIONS=42
 
 # ========================================
 # Parse Arguments
@@ -40,7 +40,7 @@ ARGUMENTS:
                        (must exist and have at least 5 lines)
 
 OPTIONS:
-  --max <N>            Maximum iterations before auto-stop (default: 10)
+  --max <N>            Maximum iterations before auto-stop (default: 42)
   --codex-model <MODEL:EFFORT>
                        Codex model and reasoning effort (default: gpt-5.2-codex:xhigh)
   -h, --help           Show this help message
