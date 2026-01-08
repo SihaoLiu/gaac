@@ -1,5 +1,5 @@
 {
-  "description": "GAAC Plugin Hooks - Ralph-Wiggum style review iteration for /work-on-issue",
+  "description": "GAAC Plugin Hooks - Ralph-Wiggum style review iteration for /work-on-issue and loop-with-codex-review",
   "hooks": {
     "Stop": [
       {
@@ -7,6 +7,10 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.sh"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/loop-codex-stop-hook.sh"
           }
         ]
       }

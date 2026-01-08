@@ -1,0 +1,275 @@
+#!/bin/bash
+#
+# Setup script for ralph-loop-with-codex-review
+#
+# Creates state files for the loop that uses Codex to review Claude's work.
+#
+# Usage:
+#   setup-loop-with-codex.sh <path/to/plan.md> [--max N] [--codex-model MODEL:EFFORT]
+#
+
+set -euo pipefail
+
+# ========================================
+# Default Configuration
+# ========================================
+
+# Default Codex model and reasoning effort
+DEFAULT_CODEX_MODEL="gpt-5.2-codex"
+DEFAULT_CODEX_EFFORT="xhigh"
+DEFAULT_MAX_ITERATIONS=10
+
+# ========================================
+# Parse Arguments
+# ========================================
+
+PLAN_FILE=""
+MAX_ITERATIONS="$DEFAULT_MAX_ITERATIONS"
+CODEX_MODEL="$DEFAULT_CODEX_MODEL"
+CODEX_EFFORT="$DEFAULT_CODEX_EFFORT"
+
+show_help() {
+    cat << 'HELP_EOF'
+ralph-loop-with-codex-review - Iterative development with Codex review
+
+USAGE:
+  /gaac:ralph-loop-with-codex-review <path/to/plan.md> [OPTIONS]
+
+ARGUMENTS:
+  <path/to/plan.md>    Path to a markdown file containing the implementation plan
+                       (must exist and have at least 5 lines)
+
+OPTIONS:
+  --max <N>            Maximum iterations before auto-stop (default: 10)
+  --codex-model <MODEL:EFFORT>
+                       Codex model and reasoning effort (default: gpt-5.2-codex:xhigh)
+  -h, --help           Show this help message
+
+DESCRIPTION:
+  Starts a Ralph Loop with Codex review in your CURRENT session. Unlike
+  the standard ralph-loop, this variant:
+
+  1. Takes a markdown plan file as input (not a prompt string)
+  2. Uses Codex to independently review Claude's work each iteration
+  3. Continues until Codex confirms completion with "COMPLETE" or max iterations
+
+  The flow:
+  1. Claude works on the plan
+  2. Claude writes a summary to round-N-summary.md
+  3. On exit attempt, Codex reviews the summary
+  4. If Codex finds issues, it blocks exit and sends feedback
+  5. If Codex outputs "COMPLETE", the loop ends
+
+EXAMPLES:
+  /gaac:ralph-loop-with-codex-review docs/feature-plan.md
+  /gaac:ralph-loop-with-codex-review docs/impl.md --max 20
+  /gaac:ralph-loop-with-codex-review plan.md --codex-model gpt-5.2-codex:high
+
+STOPPING:
+  - /gaac:cancel-loop-with-codex   Cancel the active loop
+  - Reach --max iterations
+  - Codex outputs "COMPLETE" as final line of review
+
+MONITORING:
+  # View current state:
+  cat .claude/gaac-loop.local/*/state.md
+
+  # View latest summary:
+  cat .claude/gaac-loop.local/*/round-*-summary.md | tail -50
+
+  # View Codex review:
+  cat .claude/gaac-loop.local/*/round-*-review-result.md | tail -50
+HELP_EOF
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_help
+            ;;
+        --max)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --max requires a number argument" >&2
+                exit 1
+            fi
+            if ! [[ "$2" =~ ^[0-9]+$ ]]; then
+                echo "Error: --max must be a positive integer, got: $2" >&2
+                exit 1
+            fi
+            MAX_ITERATIONS="$2"
+            shift 2
+            ;;
+        --codex-model)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --codex-model requires a MODEL:EFFORT argument" >&2
+                exit 1
+            fi
+            # Parse MODEL:EFFORT format
+            if [[ "$2" =~ ^([^:]+):([^:]+)$ ]]; then
+                CODEX_MODEL="${BASH_REMATCH[1]}"
+                CODEX_EFFORT="${BASH_REMATCH[2]}"
+            else
+                CODEX_MODEL="$2"
+                CODEX_EFFORT="$DEFAULT_CODEX_EFFORT"
+            fi
+            shift 2
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            echo "Use --help for usage information" >&2
+            exit 1
+            ;;
+        *)
+            if [[ -z "$PLAN_FILE" ]]; then
+                PLAN_FILE="$1"
+            else
+                echo "Error: Multiple plan files specified" >&2
+                echo "Only one plan file is allowed" >&2
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+# ========================================
+# Validate Prerequisites
+# ========================================
+
+# Check plan file is provided
+if [[ -z "$PLAN_FILE" ]]; then
+    echo "Error: No plan file provided" >&2
+    echo "" >&2
+    echo "Usage: /gaac:ralph-loop-with-codex-review <path/to/plan.md> [OPTIONS]" >&2
+    echo "" >&2
+    echo "For help: /gaac:ralph-loop-with-codex-review --help" >&2
+    exit 1
+fi
+
+# Make path absolute if relative
+if [[ ! "$PLAN_FILE" = /* ]]; then
+    PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+    PLAN_FILE="$PROJECT_ROOT/$PLAN_FILE"
+fi
+
+# Check plan file exists
+if [[ ! -f "$PLAN_FILE" ]]; then
+    echo "Error: Plan file not found: $PLAN_FILE" >&2
+    exit 1
+fi
+
+# Check plan file has at least 5 lines
+LINE_COUNT=$(wc -l < "$PLAN_FILE" | tr -d ' ')
+if [[ "$LINE_COUNT" -lt 5 ]]; then
+    echo "Error: Plan is too simple (only $LINE_COUNT lines, need at least 5)" >&2
+    echo "" >&2
+    echo "The plan file should contain enough detail for implementation." >&2
+    echo "Consider adding more context, acceptance criteria, or steps." >&2
+    exit 1
+fi
+
+# Check codex is available
+if ! command -v codex &>/dev/null; then
+    echo "Error: ralph-loop-with-codex-review requires codex to run" >&2
+    echo "" >&2
+    echo "Please install Codex CLI: https://openai.com/codex" >&2
+    exit 1
+fi
+
+# ========================================
+# Setup State Directory
+# ========================================
+
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+LOOP_BASE_DIR="$PROJECT_ROOT/.claude/gaac-loop.local"
+
+# Create timestamp for this loop session
+TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
+LOOP_DIR="$LOOP_BASE_DIR/$TIMESTAMP"
+
+mkdir -p "$LOOP_DIR"
+
+# Get docs base path from gaac config if available
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_HELPER="$SCRIPT_DIR/gaac-config.sh"
+DOCS_PATH=""
+if [[ -f "$CONFIG_HELPER" ]]; then
+    DOCS_PATH=$(bash "$CONFIG_HELPER" docs-base 2>/dev/null || echo "")
+fi
+DOCS_PATH="${DOCS_PATH:-docs}"
+
+# ========================================
+# Create State File
+# ========================================
+
+cat > "$LOOP_DIR/state.md" << EOF
+---
+current_round: 0
+max_iterations: $MAX_ITERATIONS
+codex_model: $CODEX_MODEL
+codex_effort: $CODEX_EFFORT
+plan_file: $PLAN_FILE
+started_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+---
+EOF
+
+# ========================================
+# Create Initial Prompt
+# ========================================
+
+SUMMARY_PATH="$LOOP_DIR/round-0-summary.md"
+
+cat > "$LOOP_DIR/round-0-prompt.md" << EOF
+Read and execute below with ultrathink
+
+$(cat "$PLAN_FILE")
+
+Note: You MUST NOT try to exit \`ralph-loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-with-codex\`
+
+Please write your work summary into $SUMMARY_PATH
+EOF
+
+# ========================================
+# Output Setup Message
+# ========================================
+
+cat << EOF
+=== ralph-loop-with-codex-review activated ===
+
+Plan File: $PLAN_FILE ($LINE_COUNT lines)
+Max Iterations: $MAX_ITERATIONS
+Codex Model: $CODEX_MODEL
+Codex Effort: $CODEX_EFFORT
+Loop Directory: $LOOP_DIR
+
+The loop is now active. When you try to exit:
+1. Codex will review your work summary
+2. If issues are found, you'll receive feedback and continue
+3. If Codex outputs "COMPLETE", the loop ends
+
+To cancel: /gaac:cancel-loop-with-codex
+
+---
+
+EOF
+
+# Output the initial prompt
+cat "$LOOP_DIR/round-0-prompt.md"
+
+echo ""
+echo "==========================================="
+echo "CRITICAL - Work Summary Requirement"
+echo "==========================================="
+echo ""
+echo "When you complete your work, you MUST write a detailed summary to:"
+echo "  $SUMMARY_PATH"
+echo ""
+echo "The summary should include:"
+echo "  - What was implemented"
+echo "  - Files created/modified"
+echo "  - Tests added/passed"
+echo "  - Any remaining items"
+echo ""
+echo "Codex will review this summary to determine if work is complete."
+echo "==========================================="
