@@ -1,7 +1,7 @@
 ---
 description: Create a git commit following GAAC format with proper tags and issue references
 argument-hint: [commit message]
-allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/create-commit.sh:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(gh repo view:*), Bash(gh issue view:*), Read, Write, Glob
+allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/create-commit.sh:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git branch:*), Bash(gh repo view:*), Bash(gh issue view:*), Read, Write, Glob
 ---
 
 # /git-commit
