@@ -93,6 +93,8 @@ gh pr list --search "<keywords from idea>" --json number,title,state --limit 10
 
 Check GitHub project for related items if configured in gaac.md.
 
+**Output**: Write your findings to `./${DRAFT_DIR}/research_github_<topic>.md` with sections for related issues, PRs, and project items.
+
 ### 2.3 Documentation Research
 
 Search local documentation for related topics:
@@ -100,12 +102,16 @@ Search local documentation for related topics:
 - Read related architecture documents
 - Note any existing patterns or conventions
 
+**Output**: Write your findings to `./${DRAFT_DIR}/research_docs_<topic>.md` summarizing relevant documentation, patterns, and conventions found.
+
 ### 2.4 Codebase Exploration
 
 Use Task tool with `subagent_type=Explore` to understand:
 - Existing implementations of similar features
 - Code patterns and conventions
 - Potential integration points
+
+**Output**: Write your findings to `./${DRAFT_DIR}/research_code_<topic>.md` documenting relevant code locations, patterns, and integration points.
 
 ---
 
@@ -271,7 +277,7 @@ Create a tracking issue for this idea:
 # L2 is optional - use only if there's a clear sub-area
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-issue.sh" \
     --title "[L1] <Idea Title>" \
-    --body-file "<generated issue body>" \
+    --body "<generated issue body>" \  # or use --body-file if created in temporary file
     --labels "research,draft,L1:Component"
 ```
 
@@ -305,7 +311,7 @@ Present summary to user:
 
 ### Next Steps:
 - Review the draft document
-- Run `/refine-spec-to-arch draft-<topic>.md` to create architecture documents
+- Run `/refine-spec-to-arch ${DRAFT_DIR}/draft-<topic>.md` to create architecture documents
 
 ---
 
