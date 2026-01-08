@@ -157,7 +157,7 @@ After initial clarification, run external evaluation:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
-    --prompt-file "<prompt with draft + clarifications>" \
+    --prompt "<prompt with draft + clarifications>" \  # or use --prompt-file if created in temporary file
     --context-files "${DOCS_ROOT}/**/*.md" \
     --output-file "./${DRAFT_DIR}/evaluation_<topic>.md"
 ```
@@ -364,7 +364,7 @@ Create PR for architecture review:
 # Use ISSUE_NUM from Phase 1.3
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-pr.sh" \
     --title "[Docs][Issue #$ISSUE_NUM] <Feature> architecture" \
-    --body-file "<pr body with summary>" \
+    --body "<pr body with summary>" \  # or use --body-file if created in temporary file
     --resolves "$ISSUE_NUM"
 ```
 

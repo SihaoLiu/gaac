@@ -245,7 +245,7 @@ Create issues starting with those that have no dependencies:
 # Use labels for workflow stage (implementation)
 bash "${CLAUDE_PLUGIN_ROOT}/skills/github-manager/scripts/create-issue.sh" \
     --title "[L1] <Task Title>" \
-    --body-file "<generated body>" \
+    --body "<generated body>" \  # or use --body-file if created in temporary file
     --labels "implementation,L1:Component"
 ```
 
