@@ -97,8 +97,9 @@ if [[ ! "$CURRENT_ROUND" =~ ^[0-9]+$ ]]; then
     exit 0
 fi
 
-if [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
-    MAX_ITERATIONS=10
+# max_iterations can be "inf" for infinite mode or a number
+if [[ "$MAX_ITERATIONS" != "inf" ]] && [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
+    MAX_ITERATIONS=42
 fi
 
 # ========================================
@@ -145,7 +146,8 @@ fi
 
 NEXT_ROUND=$((CURRENT_ROUND + 1))
 
-if [[ $NEXT_ROUND -gt $MAX_ITERATIONS ]]; then
+# Skip max iteration check if in infinite mode
+if [[ "$MAX_ITERATIONS" != "inf" ]] && [[ $NEXT_ROUND -gt $MAX_ITERATIONS ]]; then
     echo "ralph-loop-with-codex-review did not complete, but reached max iterations ($MAX_ITERATIONS). Exiting." >&2
     rm -f "$STATE_FILE"
     exit 0
@@ -290,7 +292,11 @@ Please write your work summary into $NEXT_SUMMARY_FILE
 EOF
 
 # Build system message
-SYSTEM_MSG="Loop: Round $NEXT_ROUND/$MAX_ITERATIONS - Codex found issues to address"
+if [[ "$MAX_ITERATIONS" == "inf" ]]; then
+    SYSTEM_MSG="Loop: Round $NEXT_ROUND (infinite mode) - Codex found issues to address"
+else
+    SYSTEM_MSG="Loop: Round $NEXT_ROUND/$MAX_ITERATIONS - Codex found issues to address"
+fi
 
 # Block exit and send review feedback
 jq -n \

@@ -25,6 +25,8 @@ DEFAULT_MAX_ITERATIONS=42
 
 PLAN_FILE=""
 MAX_ITERATIONS="$DEFAULT_MAX_ITERATIONS"
+MAX_EXPLICITLY_SET=false
+INFINITE_MODE=false
 CODEX_MODEL="$DEFAULT_CODEX_MODEL"
 CODEX_EFFORT="$DEFAULT_CODEX_EFFORT"
 
@@ -41,6 +43,8 @@ ARGUMENTS:
 
 OPTIONS:
   --max <N>            Maximum iterations before auto-stop (default: 42)
+  --infinite           No iteration limit - run until Codex outputs COMPLETE
+                       (cannot be used with --max, requires confirmation)
   --codex-model <MODEL:EFFORT>
                        Codex model and reasoning effort (default: gpt-5.2-codex:xhigh)
   -h, --help           Show this help message
@@ -61,9 +65,10 @@ DESCRIPTION:
   5. If Codex outputs "COMPLETE", the loop ends
 
 EXAMPLES:
-  /gaac:ralph-loop-with-codex-review docs/feature-plan.md
-  /gaac:ralph-loop-with-codex-review docs/impl.md --max 20
-  /gaac:ralph-loop-with-codex-review plan.md --codex-model gpt-5.2-codex:high
+  /gaac:loop-with-codex-review docs/feature-plan.md
+  /gaac:loop-with-codex-review docs/impl.md --max 20
+  /gaac:loop-with-codex-review plan.md --infinite
+  /gaac:loop-with-codex-review plan.md --codex-model gpt-5.2-codex:high
 
 STOPPING:
   - /gaac:cancel-loop-with-codex   Cancel the active loop
@@ -98,7 +103,12 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             MAX_ITERATIONS="$2"
+            MAX_EXPLICITLY_SET=true
             shift 2
+            ;;
+        --infinite)
+            INFINITE_MODE=true
+            shift
             ;;
         --codex-model)
             if [[ -z "${2:-}" ]]; then
@@ -132,6 +142,49 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# ========================================
+# Validate Option Conflicts
+# ========================================
+
+# Check for --max and --infinite conflict
+if [[ "$INFINITE_MODE" == "true" ]] && [[ "$MAX_EXPLICITLY_SET" == "true" ]]; then
+    echo "Error: --max and --infinite cannot be used together" >&2
+    echo "" >&2
+    echo "Use --max <N> for a finite iteration limit, or" >&2
+    echo "Use --infinite for unlimited iterations until Codex confirms COMPLETE" >&2
+    exit 1
+fi
+
+# If infinite mode, set max_iterations to inf and require confirmation
+if [[ "$INFINITE_MODE" == "true" ]]; then
+    MAX_ITERATIONS="inf"
+
+    echo "==========================================="
+    echo "WARNING: Infinite Mode Selected"
+    echo "==========================================="
+    echo ""
+    echo "You have selected --infinite mode. This means:"
+    echo "  - The loop will run until Codex outputs COMPLETE"
+    echo "  - There is NO iteration limit"
+    echo "  - This may consume a LARGE amount of tokens"
+    echo "  - Both Claude and Codex will be called each iteration"
+    echo ""
+    echo "Are you sure you want to continue? (yes/no)"
+    echo ""
+
+    read -r CONFIRMATION
+
+    if [[ "$CONFIRMATION" != "yes" ]]; then
+        echo "" >&2
+        echo "Cancelled. Use --max <N> for a safer finite limit." >&2
+        exit 1
+    fi
+
+    echo ""
+    echo "Infinite mode confirmed. Proceeding..."
+    echo ""
+fi
 
 # ========================================
 # Validate Prerequisites
@@ -234,11 +287,18 @@ EOF
 # Output Setup Message
 # ========================================
 
+# Format max iterations for display
+if [[ "$MAX_ITERATIONS" == "inf" ]]; then
+    MAX_DISPLAY="unlimited (infinite mode)"
+else
+    MAX_DISPLAY="$MAX_ITERATIONS"
+fi
+
 cat << EOF
 === ralph-loop-with-codex-review activated ===
 
 Plan File: $PLAN_FILE ($LINE_COUNT lines)
-Max Iterations: $MAX_ITERATIONS
+Max Iterations: $MAX_DISPLAY
 Codex Model: $CODEX_MODEL
 Codex Effort: $CODEX_EFFORT
 Loop Directory: $LOOP_DIR
