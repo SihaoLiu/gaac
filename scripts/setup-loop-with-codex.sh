@@ -280,7 +280,7 @@ $(cat "$PLAN_FILE")
 
 Note: You MUST NOT try to exit \`ralph-loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-with-codex\`
 
-Please write your work summary into $SUMMARY_PATH
+Please write your work summary into @$SUMMARY_PATH
 EOF
 
 # ========================================

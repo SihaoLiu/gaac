@@ -51,7 +51,8 @@ find_active_loop() {
     # Find directories with state.md, sorted by name (timestamp) descending
     for dir in $(ls -1dr "$LOOP_BASE_DIR"/*/ 2>/dev/null); do
         if [[ -f "$dir/state.md" ]]; then
-            echo "$dir"
+            # Remove trailing slash to avoid double slashes in paths
+            echo "${dir%/}"
             return
         fi
     done
@@ -178,7 +179,7 @@ REVIEW_RESULT_FILE="$LOOP_DIR/round-${CURRENT_ROUND}-review-result.md"
 SUMMARY_CONTENT=$(cat "$SUMMARY_FILE")
 
 cat > "$REVIEW_PROMPT_FILE" << EOF
-Based on $PROMPT_FILE, Claude claims to have completed the work. Please conduct a thorough critical review to verify this.
+Based on @$PROMPT_FILE, Claude claims to have completed the work. Please conduct a thorough critical review to verify this.
 
 ---
 Below is Claude's summary of the work completed:
@@ -187,8 +188,8 @@ $SUMMARY_CONTENT
 
 Requirements:
 - Your task is to conduct a deep critical review, focusing on finding implementation issues and identifying gaps between "plan-design" and actual implementation.
-- Relevant top-level guidance documents, phased implementation plans, and other important documentation and implementation references are located under $DOCS_PATH.
-- If after your investigation the actual situation does not match what Claude claims to have completed, output your review comments to $REVIEW_RESULT_FILE.
+- Relevant top-level guidance documents, phased implementation plans, and other important documentation and implementation references are located under @$DOCS_PATH.
+- If after your investigation the actual situation does not match what Claude claims to have completed, output your review comments to @$REVIEW_RESULT_FILE.
 - If after your investigation the actual situation matches what Claude claims, output your review result to the same file, and ensure the last line contains only the single word COMPLETE.
 EOF
 
@@ -342,7 +343,7 @@ $REVIEW_CONTENT
 
 Note: You MUST NOT try to exit \`ralph-loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-with-codex\`
 
-Please write your work summary into $NEXT_SUMMARY_FILE
+Please write your work summary into @$NEXT_SUMMARY_FILE
 EOF
 
 # Build system message
