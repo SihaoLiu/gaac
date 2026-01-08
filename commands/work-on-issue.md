@@ -1,7 +1,7 @@
 ---
 description: Complete end-to-end workflow to resolve a GitHub issue with Ralph-Wiggum enhanced review loops
 argument-hint: <issue-number>
-allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/init-validator/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/third-party-call/scripts/*:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git checkout:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git rebase:*), Bash(gh issue view:*), Bash(gh issue comment:*), Bash(gh pr create:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh pr comment:*), Bash(gh api:*), Bash(mkdir -p:*), Bash(rm -f:*), Bash(cat:*), Bash(sleep:*), Read, Write, Edit, Glob, Grep, Task, AskUserQuestion, TodoWrite, EnterPlanMode
+allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/init-validator/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/third-party-call/scripts/*:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git checkout:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git rebase:*), Bash(gh repo view:*), Bash(gh issue view:*), Bash(gh issue comment:*), Bash(gh pr create:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh pr comment:*), Bash(gh api:*), Bash(mkdir -p:*), Bash(rm -f:*), Bash(cat:*), Bash(sleep:*), Read, Write, Edit, Glob, Grep, Task, AskUserQuestion, TodoWrite, EnterPlanMode
 ---
 
 # /work-on-issue
@@ -10,7 +10,7 @@ Complete end-to-end workflow to resolve a GitHub issue. Includes test-driven dev
 
 ## Context
 
-- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "unknown"`
+- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner'`
 - Current branch: !`git branch --show-current`
 - Issue number: $1
 - Max iterations: !`echo "${MAX_RALPH_WIGGUM_ITER:-50}"`

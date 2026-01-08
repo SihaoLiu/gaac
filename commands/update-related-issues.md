@@ -10,7 +10,7 @@ Update related issues after a PR has been merged. This is a convenience wrapper 
 
 ## Context
 
-- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "unknown"`
+- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner'`
 - Argument: $1
 
 ## Usage

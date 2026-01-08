@@ -1,7 +1,7 @@
 ---
 description: Create a git commit following GAAC format with proper tags and issue references
 argument-hint: [commit message]
-allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/create-commit.sh:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(gh issue view:*), Read, Write, Glob
+allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/create-commit.sh:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(gh repo view:*), Bash(gh issue view:*), Read, Write, Glob
 ---
 
 # /git-commit
@@ -10,7 +10,7 @@ Create a git commit following GAAC format conventions. Automatically infers L1/L
 
 ## Context
 
-- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "unknown"`
+- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner'`
 - Current branch: !`git branch --show-current`
 - Message (optional): $ARGUMENTS
 

@@ -1,7 +1,7 @@
 ---
 description: Resolve PR review comments in priority order
 argument-hint: [pr-number]
-allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh api:*), Read, Write, Edit, Glob, Grep, Task, AskUserQuestion, TodoWrite
+allowed-tools: Bash(bash $CLAUDE_PLUGIN_ROOT/scripts/*:*), Bash(bash $CLAUDE_PLUGIN_ROOT/skills/github-manager/scripts/*:*), Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(gh repo view:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh api:*), Read, Write, Edit, Glob, Grep, Task, AskUserQuestion, TodoWrite
 ---
 
 # /resolve-pr-comment
@@ -10,7 +10,7 @@ Fetch and resolve PR review comments in priority order. Handles blocking, high, 
 
 ## Context
 
-- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "unknown"`
+- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner'`
 - Current branch: !`git branch --show-current`
 - PR number: $1
 

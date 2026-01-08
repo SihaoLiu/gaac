@@ -10,7 +10,7 @@ Transform an idea (text or markdown file) into a draft specification document th
 
 ## Context
 
-- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "unknown"`
+- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner'`
 - Current branch: !`git branch --show-current`
 - Input: $ARGUMENTS
 

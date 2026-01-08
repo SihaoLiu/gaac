@@ -10,7 +10,7 @@ Merge a pull request with validation checks (non-draft, CI green) and update all
 
 ## Context
 
-- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "unknown"`
+- Repository: !`gh repo view --json nameWithOwner -q '.nameWithOwner'`
 - PR number: $1
 - Merge strategy: Configured in gaac.md (default: squash)
 
