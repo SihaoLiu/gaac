@@ -35,19 +35,31 @@ def find_latest_todos(transcript_path: Path) -> list:
             except json.JSONDecodeError:
                 continue
 
-            # Look for tool_use entries with TodoWrite
-            # The transcript format varies, so we check multiple patterns
+            # The actual Claude Code transcript format:
+            # {
+            #   "type": "assistant",
+            #   "message": {
+            #     "content": [
+            #       {"type": "tool_use", "name": "TodoWrite", "input": {"todos": [...]}}
+            #     ]
+            #   }
+            # }
 
-            # Pattern 1: Direct tool_use message
-            if entry.get("type") == "tool_use":
-                tool_name = entry.get("name", "") or entry.get("tool_name", "")
-                if tool_name == "TodoWrite":
-                    tool_input = entry.get("input", {}) or entry.get("tool_input", {})
-                    todos = tool_input.get("todos", [])
-                    if todos:
-                        latest_todos = todos
+            # Pattern 1: Claude Code transcript format (type: assistant)
+            if entry.get("type") == "assistant":
+                message = entry.get("message", {})
+                content = message.get("content", [])
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "tool_use":
+                            tool_name = block.get("name", "")
+                            if tool_name == "TodoWrite":
+                                tool_input = block.get("input", {})
+                                todos = tool_input.get("todos", [])
+                                if todos:
+                                    latest_todos = todos
 
-            # Pattern 2: Message with content array containing tool_use
+            # Pattern 2: Alternative format (type: message)
             if entry.get("type") == "message":
                 content = entry.get("content", [])
                 if isinstance(content, list):
@@ -59,6 +71,15 @@ def find_latest_todos(transcript_path: Path) -> list:
                                 todos = tool_input.get("todos", [])
                                 if todos:
                                     latest_todos = todos
+
+            # Pattern 3: Direct tool_use entry
+            if entry.get("type") == "tool_use":
+                tool_name = entry.get("name", "") or entry.get("tool_name", "")
+                if tool_name == "TodoWrite":
+                    tool_input = entry.get("input", {}) or entry.get("tool_input", {})
+                    todos = tool_input.get("todos", [])
+                    if todos:
+                        latest_todos = todos
 
     return latest_todos
 
