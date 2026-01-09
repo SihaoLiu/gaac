@@ -1,6 +1,6 @@
 # GAAC - GitHub as a Context
 
-**Current Version: 1.0.18**
+**Current Version: 1.0.19**
 
 A Claude Code plugin that implements the "GitHub as a Context" methodology for AI-native software development. GAAC uses GitHub's native features (Issues, PRs, Projects) as persistent context storage for LLM coding agents, providing a structured workflow from research to implementation.
 
@@ -17,6 +17,80 @@ This approach provides:
 - Collaboration between human and AI developers
 - Audit trail of all decisions
 - Integration with existing GitHub workflows
+
+## Quick Start: Iterative Development with Codex Review
+
+The `loop-with-codex-review` command demonstrates GAAC's core philosophy: **Iteration over Perfection**. Inspired by the [Ralph Wiggum technique](https://ghuntley.com/ralph/), it creates an iterative feedback loop where Claude implements your plan while Codex independently reviews the work, ensuring quality through continuous refinement.
+
+### How It Works
+
+```
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│   Your Plan      │────>│  Claude Implements│────>│  Codex Reviews   │
+│   (plan.md)      │     │  & Summarizes     │     │  & Critiques     │
+└──────────────────┘     └──────────────────┘     └────────┬─────────┘
+                                   ^                       │
+                                   │    Feedback Loop      │
+                                   └───────────────────────┘
+                                   (until COMPLETE or max iterations)
+```
+
+### Step 1: Create Your Plan
+
+Use Claude's plan mode to design your implementation. Save the plan to a markdown file:
+
+```bash
+# In Claude Code, enter plan mode and describe your task
+# Claude will create a detailed plan
+# Save the plan to a file, e.g., docs/my-feature-plan.md
+```
+
+Your plan file should contain:
+- Clear description of what to implement
+- Acceptance criteria
+- Technical approach (optional but helpful)
+- At least 5 lines of content
+
+### Step 2: Run the Loop
+
+```bash
+# Basic usage - runs up to 42 iterations
+/gaac:loop-with-codex-review docs/my-feature-plan.md
+
+# Limit iterations
+/gaac:loop-with-codex-review docs/my-feature-plan.md --max 10
+
+# Run until Codex says COMPLETE (use with caution)
+/gaac:loop-with-codex-review docs/my-feature-plan.md --infinite
+```
+
+### Step 3: Monitor Progress
+
+All iteration artifacts are saved in `.gaac-loop.local/<timestamp>/`:
+
+```bash
+# View current round
+cat .gaac-loop.local/*/state.md
+
+# View Claude's latest summary
+cat .gaac-loop.local/*/round-*-summary.md | tail -50
+
+# View Codex's review feedback
+cat .gaac-loop.local/*/round-*-review-result.md | tail -50
+```
+
+### Step 4: Cancel If Needed
+
+```bash
+/gaac:cancel-loop-with-codex
+```
+
+### Prerequisites
+
+- `codex` CLI must be installed and available in PATH
+- Plan file must exist and have at least 5 lines
+
+This simplified workflow captures GAAC's essence: let AI iterate until quality is achieved, with independent review ensuring nothing is missed.
 
 ## Installation
 
