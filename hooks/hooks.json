@@ -1,6 +1,17 @@
 {
   "description": "GAAC Plugin Hooks - Ralph-Wiggum style review iteration for /work-on-issue and loop-with-codex-review",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/loop-write-validator.sh"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
