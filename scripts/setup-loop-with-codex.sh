@@ -298,7 +298,10 @@ $(cat "$PLAN_FILE")
 
 Note: You MUST NOT try to exit \`ralph-loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-with-codex\`
 
-Please write your work summary into @$SUMMARY_PATH
+After completing the work, please:
+1. Commit your changes with a descriptive commit message
+2. Push the commit to the remote repository
+3. Write your work summary into @$SUMMARY_PATH
 EOF
 
 # ========================================
@@ -338,17 +341,23 @@ cat "$LOOP_DIR/round-0-prompt.md"
 
 echo ""
 echo "==========================================="
-echo "CRITICAL - Work Summary Requirement"
+echo "CRITICAL - Work Completion Requirements"
 echo "==========================================="
 echo ""
-echo "When you complete your work, you MUST write a detailed summary to:"
-echo "  $SUMMARY_PATH"
+echo "When you complete your work, you MUST:"
 echo ""
-echo "The summary should include:"
-echo "  - What was implemented"
-echo "  - Files created/modified"
-echo "  - Tests added/passed"
-echo "  - Any remaining items"
+echo "1. COMMIT and PUSH your changes:"
+echo "   - Create a commit with descriptive message"
+echo "   - Push to the remote repository"
+echo ""
+echo "2. Write a detailed summary to:"
+echo "   $SUMMARY_PATH"
+echo ""
+echo "   The summary should include:"
+echo "   - What was implemented"
+echo "   - Files created/modified"
+echo "   - Tests added/passed"
+echo "   - Any remaining items"
 echo ""
 echo "Codex will review this summary to determine if work is complete."
 echo "==========================================="

@@ -365,7 +365,10 @@ $REVIEW_CONTENT
 
 Note: You MUST NOT try to exit the \`ralph-loop-with-codex-review\` loop by lying, editing the loop state file, or executing \`cancel-loop-with-codex\`.
 
-Please write your work summary into @$NEXT_SUMMARY_FILE
+After completing the work, please:
+1. Commit your changes with a descriptive commit message
+2. Push the commit to the remote repository
+3. Write your work summary into @$NEXT_SUMMARY_FILE
 EOF
 
 # Build system message

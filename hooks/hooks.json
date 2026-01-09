@@ -10,6 +10,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/loop-write-validator.sh"
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/loop-read-validator.sh"
+          }
+        ]
       }
     ],
     "Stop": [
