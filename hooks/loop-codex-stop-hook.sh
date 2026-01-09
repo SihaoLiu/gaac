@@ -196,6 +196,10 @@ $SUMMARY_CONTENT
 Requirements:
 - Your task is to conduct a deep critical review, focusing on finding implementation issues and identifying gaps between "plan-design" and actual implementation.
 - Relevant top-level guidance documents, phased implementation plans, and other important documentation and implementation references are located under @$DOCS_PATH.
+- If Claude planned to defer any tasks to future phases in its summary, DO NOT follow its lead. Instead, you should force Claude to complete ALL tasks as planned. 
+  - Such deferred tasks are considered incomplete work and should be flagged in your review comments and require Claude to address them. 
+  - If Claude planned to defer any tasks, please explore the codebase in-depth and draft a detailed implementation plan. Such plan should be included in your review comments for Claude to follow.
+  - Your review should be meticulous and skeptical. Look for any discrepancies, missing features, incomplete implementations
 - If after your investigation the actual situation does not match what Claude claims to have completed, output your review comments to @$REVIEW_RESULT_FILE.
 - If after your investigation the actual situation matches what Claude claims, output your review result to the same file, and ensure the last line contains only the single word COMPLETE.
 EOF
