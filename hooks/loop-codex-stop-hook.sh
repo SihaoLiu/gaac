@@ -188,7 +188,9 @@ Based on @$PROMPT_FILE, Claude claims to have completed the work. Please conduct
 
 ---
 Below is Claude's summary of the work completed:
+<!-- CLAUDE's WORK SUMMARY START -->
 $SUMMARY_CONTENT
+<!-- CLAUDE's WORK SUMMARY  END  -->
 ---
 
 Requirements:
@@ -344,7 +346,12 @@ NEXT_SUMMARY_FILE="$LOOP_DIR/round-${NEXT_ROUND}-summary.md"
 cat > "$NEXT_PROMPT_FILE" << EOF
 Your work is not finished, read and execute below with ultrathink
 
+---
+Below is Codex's review result:
+<!-- CODEX's REVIEW RESULT START -->
 $REVIEW_CONTENT
+<!-- CODEX's REVIEW RESULT  END  -->
+---
 
 Note: You MUST NOT try to exit \`ralph-loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-with-codex\`
 
