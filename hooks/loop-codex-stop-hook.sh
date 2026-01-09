@@ -350,10 +350,14 @@ EOF
 
 echo "Running Codex review for round $CURRENT_ROUND..." >&2
 
-# Debug log files go to $HOME/.cache/gaac/<timestamp>/ to avoid polluting project dir
+# Debug log files go to $HOME/.cache/gaac/<project-path>/<timestamp>/ to avoid polluting project dir
 # This prevents Claude and Codex from reading these debug files during their work
+# The project path is sanitized to replace problematic characters with '-'
 LOOP_TIMESTAMP=$(basename "$LOOP_DIR")
-CACHE_DIR="$HOME/.cache/gaac/$LOOP_TIMESTAMP"
+# Sanitize project root path: replace / and other problematic chars with -
+# This matches Claude Code's convention (e.g., /home/sihao/github.com/foo -> -home-sihao-github-com-foo)
+SANITIZED_PROJECT_PATH=$(echo "$PROJECT_ROOT" | sed 's/[^a-zA-Z0-9._-]/-/g' | sed 's/--*/-/g')
+CACHE_DIR="$HOME/.cache/gaac/$SANITIZED_PROJECT_PATH/$LOOP_TIMESTAMP"
 mkdir -p "$CACHE_DIR"
 
 CODEX_CMD_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.cmd"
