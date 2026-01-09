@@ -11,8 +11,11 @@
 # Problem 2: Claude sometimes tries to read round files from wrong locations
 # (e.g., .claude/round-9-summary.md instead of .gaac-loop.local/)
 #
-# Solution: Block reading wrong round files or files in wrong locations with
-# a helpful message that suggests using `cat` command if really needed.
+# Problem 3: Claude sometimes tries to read from old session directories
+# (e.g., .gaac-loop.local/2026-01-08_10-00-00/ when active is 2026-01-09_12-00-00/)
+#
+# Solution: Block reading wrong files with a helpful message that suggests
+# using `cat` command if really needed.
 #
 
 set -euo pipefail
@@ -145,13 +148,9 @@ fi
 # Validate Round Number
 # ========================================
 
-# Allow reading current round files
-if [[ "$CLAUDE_ROUND" == "$CURRENT_ROUND" ]]; then
-    exit 0
-fi
-
-# Block reading wrong round files
-REASON="# Wrong Round File
+if [[ "$CLAUDE_ROUND" != "$CURRENT_ROUND" ]]; then
+    # Wrong round number
+    REASON="# Wrong Round File
 
 You are trying to read \`round-${CLAUDE_ROUND}-${FILE_TYPE}.md\`, but the current round is **${CURRENT_ROUND}**.
 
@@ -168,5 +167,47 @@ cat $FILE_PATH
 
 However, please focus on the current round's requirements and avoid confusion from old context."
 
-echo "$REASON" >&2
-exit 2
+    echo "$REASON" >&2
+    exit 2
+fi
+
+# ========================================
+# Validate Directory Path (timestamp directory)
+# ========================================
+
+# Build the correct path for comparison
+CORRECT_PATH="$ACTIVE_LOOP_DIR/$CLAUDE_FILENAME"
+
+# Check if the path matches the active loop directory
+if [[ "$FILE_PATH" != "$CORRECT_PATH" ]]; then
+    # Wrong directory (e.g., old session timestamp or home directory hallucination)
+    REASON="# Wrong Directory Path
+
+You are trying to read:
+\`\`\`
+$FILE_PATH
+\`\`\`
+
+But the active loop directory is:
+\`\`\`
+$ACTIVE_LOOP_DIR/
+\`\`\`
+
+**Correct path**:
+\`\`\`
+$CORRECT_PATH
+\`\`\`
+
+You may be reading from an old session. Please read from the correct path above.
+
+If you absolutely need to read this file for reference, you can use the \`cat\` command in Bash:
+\`\`\`bash
+cat $FILE_PATH
+\`\`\`"
+
+    echo "$REASON" >&2
+    exit 2
+fi
+
+# Path is correct, allow the read
+exit 0
