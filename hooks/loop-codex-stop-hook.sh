@@ -216,10 +216,15 @@ EOF
 
 echo "Running Codex review for round $CURRENT_ROUND..." >&2
 
-# Debug log files
-CODEX_CMD_FILE="$LOOP_DIR/round-${CURRENT_ROUND}-codex-run.cmd"
-CODEX_STDOUT_FILE="$LOOP_DIR/round-${CURRENT_ROUND}-codex-run.out"
-CODEX_STDERR_FILE="$LOOP_DIR/round-${CURRENT_ROUND}-codex-run.log"
+# Debug log files go to $HOME/.cache/gaac/<timestamp>/ to avoid polluting project dir
+# This prevents Claude and Codex from reading these debug files during their work
+LOOP_TIMESTAMP=$(basename "$LOOP_DIR")
+CACHE_DIR="$HOME/.cache/gaac/$LOOP_TIMESTAMP"
+mkdir -p "$CACHE_DIR"
+
+CODEX_CMD_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.cmd"
+CODEX_STDOUT_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.out"
+CODEX_STDERR_FILE="$CACHE_DIR/round-${CURRENT_ROUND}-codex-run.log"
 
 # Source portable timeout if available
 TIMEOUT_SCRIPT="$PLUGIN_ROOT/scripts/portable-timeout.sh"
