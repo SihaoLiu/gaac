@@ -28,11 +28,13 @@ DEFAULT_CODEX_TIMEOUT=5400
 
 HOOK_INPUT=$(cat)
 
-# Prevent recursive invocation
-STOP_HOOK_ACTIVE=$(echo "$HOOK_INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
-if [[ "$STOP_HOOK_ACTIVE" == "true" ]]; then
-    exit 0
-fi
+# NOTE: We intentionally do NOT check stop_hook_active here.
+# For iterative loops, stop_hook_active will be true when Claude is continuing
+# from a previous blocked stop. We WANT to run Codex review each iteration.
+# Loop termination is controlled by:
+# - No active loop directory (no state.md) -> exit early below
+# - Codex outputs "COMPLETE" -> allow exit
+# - current_round >= max_iterations -> allow exit
 
 # ========================================
 # Find Active Loop
