@@ -11,9 +11,13 @@
 # Problem 2: Claude sometimes writes to wrong round number (e.g., round-5-summary.md
 # when current round is 4), causing the Codex review to fail.
 #
+# Problem 3: Claude sometimes writes round-*-summary.md to completely wrong
+# locations (e.g., .claude/round-9-summary.md instead of .gaac-loop.local/)
+#
 # Solution: This hook detects loop-related files and:
 # - Auto-corrects wrong directory paths
 # - Validates round numbers and either corrects or rejects with guidance
+# - Redirects summary files written to wrong locations
 #
 
 set -euo pipefail
@@ -38,22 +42,27 @@ FILE_PATH=$(echo "$HOOK_INPUT" | jq -r '.tool_input.file_path // ""')
 # Check if this is a loop-related file
 # ========================================
 
-# Pattern: anything that contains .gaac-loop.local and round-*-summary.md or round-*-prompt.md
-# These are the files Claude writes during loop-with-codex-review
-if ! echo "$FILE_PATH" | grep -q '\.gaac-loop\.local/'; then
-    # Not a loop file, allow normally
+# Check if it's a summary file (regardless of path)
+IS_SUMMARY_FILE=false
+CLAUDE_FILENAME=""
+if echo "$FILE_PATH" | grep -qE 'round-[0-9]+-summary\.md$'; then
+    IS_SUMMARY_FILE=true
+    CLAUDE_FILENAME=$(basename "$FILE_PATH")
+fi
+
+# Check if path contains .gaac-loop.local
+IN_GAAC_LOOP_DIR=false
+if echo "$FILE_PATH" | grep -q '\.gaac-loop\.local/'; then
+    IN_GAAC_LOOP_DIR=true
+fi
+
+# If not a summary file and not in .gaac-loop.local, allow normally
+if [[ "$IS_SUMMARY_FILE" == "false" ]] && [[ "$IN_GAAC_LOOP_DIR" == "false" ]]; then
     exit 0
 fi
 
-# Check if it's a loop file we care about (summary files only for round validation)
-# We only validate round numbers for summary files, not prompt files (which are written by the hook)
-IS_SUMMARY_FILE=false
-if echo "$FILE_PATH" | grep -qE 'round-[0-9]+-summary\.md$'; then
-    IS_SUMMARY_FILE=true
-fi
-
-# Allow non-summary loop files without round validation
-if [[ "$IS_SUMMARY_FILE" == "false" ]]; then
+# If in .gaac-loop.local but not a file we care about, check further
+if [[ "$IN_GAAC_LOOP_DIR" == "true" ]] && [[ "$IS_SUMMARY_FILE" == "false" ]]; then
     # For prompt files and state files, we don't validate round numbers
     # But we still validate the path
     if ! echo "$FILE_PATH" | grep -qE 'round-[0-9]+-prompt\.md$|state\.md$'; then
@@ -95,7 +104,76 @@ fi
 STATE_FILE="$ACTIVE_LOOP_DIR/state.md"
 
 # ========================================
-# Extract and Validate Path Components
+# Extract Current Round from State
+# ========================================
+
+FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE" 2>/dev/null || echo "")
+CURRENT_ROUND=$(echo "$FRONTMATTER" | grep '^current_round:' | sed 's/current_round: *//' | tr -d ' ')
+CURRENT_ROUND="${CURRENT_ROUND:-0}"
+
+# ========================================
+# Handle Summary Files Written to Wrong Location
+# ========================================
+
+if [[ "$IS_SUMMARY_FILE" == "true" ]] && [[ "$IN_GAAC_LOOP_DIR" == "false" ]]; then
+    # Claude is writing a summary file to a completely wrong location
+    # Extract the round number from filename
+    if [[ "$CLAUDE_FILENAME" =~ ^round-([0-9]+)-summary\.md$ ]]; then
+        CLAUDE_ROUND="${BASH_REMATCH[1]}"
+    else
+        CLAUDE_ROUND="$CURRENT_ROUND"
+    fi
+
+    # Determine correct filename (use current round)
+    CORRECT_FILENAME="round-${CURRENT_ROUND}-summary.md"
+    CORRECT_PATH="$ACTIVE_LOOP_DIR/$CORRECT_FILENAME"
+
+    # Check if correct summary already exists
+    if [[ -f "$CORRECT_PATH" ]]; then
+        REASON="# Wrong Summary Location
+
+You are trying to write to \`$FILE_PATH\`, but summary files must be in the loop directory.
+
+The summary file for round ${CURRENT_ROUND} already exists at:
+\`\`\`
+$CORRECT_PATH
+\`\`\`
+
+**Required Action**:
+1. Read the existing summary file: \`$CORRECT_PATH\`
+2. Update it with your new progress instead of creating a new file
+3. Do NOT write summary files to other locations
+
+Remember: All loop files must be written to \`$ACTIVE_LOOP_DIR/\`"
+
+        echo "$REASON" >&2
+        exit 2
+    fi
+
+    # Auto-correct to the correct path
+    CONTENT=$(echo "$HOOK_INPUT" | jq -r '.tool_input.content // ""')
+    REASON="Path corrected: $FILE_PATH -> $CORRECT_PATH (summary must be in loop directory)"
+
+    jq -n \
+        --arg file_path "$CORRECT_PATH" \
+        --arg content "$CONTENT" \
+        --arg reason "$REASON" \
+        '{
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+                "permissionDecisionReason": $reason,
+                "updatedInput": {
+                    "file_path": $file_path,
+                    "content": $content
+                }
+            }
+        }'
+    exit 0
+fi
+
+# ========================================
+# Extract and Validate Path Components (for files in .gaac-loop.local)
 # ========================================
 
 # Extract the timestamp and filename from the path Claude is trying to write to
@@ -128,11 +206,6 @@ CORRECT_FILENAME="$CLAUDE_FILENAME"
 NEEDS_ROUND_CORRECTION=false
 
 if [[ "$IS_SUMMARY_FILE" == "true" ]]; then
-    # Extract round number from state.md
-    FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE" 2>/dev/null || echo "")
-    CURRENT_ROUND=$(echo "$FRONTMATTER" | grep '^current_round:' | sed 's/current_round: *//' | tr -d ' ')
-    CURRENT_ROUND="${CURRENT_ROUND:-0}"
-
     # Extract round number from the filename Claude is trying to write
     if [[ "$CLAUDE_FILENAME" =~ ^round-([0-9]+)-summary\.md$ ]]; then
         CLAUDE_ROUND="${BASH_REMATCH[1]}"
