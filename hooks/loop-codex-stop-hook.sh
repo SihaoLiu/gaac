@@ -20,7 +20,7 @@ set -euo pipefail
 
 DEFAULT_CODEX_MODEL="gpt-5.2-codex"
 DEFAULT_CODEX_EFFORT="xhigh"
-CODEX_TIMEOUT="${CODEX_TIMEOUT:-600}"
+DEFAULT_CODEX_TIMEOUT=5400
 
 # ========================================
 # Read Hook Input
@@ -83,6 +83,7 @@ CURRENT_ROUND=$(echo "$FRONTMATTER" | grep '^current_round:' | sed 's/current_ro
 MAX_ITERATIONS=$(echo "$FRONTMATTER" | grep '^max_iterations:' | sed 's/max_iterations: *//' | tr -d ' ')
 CODEX_MODEL=$(echo "$FRONTMATTER" | grep '^codex_model:' | sed 's/codex_model: *//' | tr -d ' ')
 CODEX_EFFORT=$(echo "$FRONTMATTER" | grep '^codex_effort:' | sed 's/codex_effort: *//' | tr -d ' ')
+STATE_CODEX_TIMEOUT=$(echo "$FRONTMATTER" | grep '^codex_timeout:' | sed 's/codex_timeout: *//' | tr -d ' ')
 PLAN_FILE=$(echo "$FRONTMATTER" | grep '^plan_file:' | sed 's/plan_file: *//')
 
 # Defaults
@@ -90,6 +91,8 @@ CURRENT_ROUND="${CURRENT_ROUND:-0}"
 MAX_ITERATIONS="${MAX_ITERATIONS:-10}"
 CODEX_MODEL="${CODEX_MODEL:-$DEFAULT_CODEX_MODEL}"
 CODEX_EFFORT="${CODEX_EFFORT:-$DEFAULT_CODEX_EFFORT}"
+# Timeout priority: state file > env var > default
+CODEX_TIMEOUT="${STATE_CODEX_TIMEOUT:-${CODEX_TIMEOUT:-$DEFAULT_CODEX_TIMEOUT}}"
 
 # Validate numeric fields
 if [[ ! "$CURRENT_ROUND" =~ ^[0-9]+$ ]]; then

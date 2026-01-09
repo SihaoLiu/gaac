@@ -1,6 +1,6 @@
 ---
 description: "Start iterative loop with Codex review"
-argument-hint: "<path/to/plan.md> [--max N] [--codex-model MODEL:EFFORT]"
+argument-hint: "<path/to/plan.md> [--max N] [--codex-model MODEL:EFFORT] [--codex-timeout SECONDS]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-loop-with-codex.sh:*)"]
 hide-from-slash-command-tool: "true"
 ---

@@ -130,7 +130,7 @@ EOF
 
 echo "Running $TOOL for peer review..."
 
-TIMEOUT="${CODEX_TIMEOUT:-600}"
+TIMEOUT="${CODEX_TIMEOUT:-5400}"
 
 if [ "$TOOL" = "codex" ]; then
     # Run Codex with portable timeout

@@ -224,7 +224,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
 
 | Tool | Default | Env Variable |
 |------|---------|--------------|
-| Codex | 600s | `CODEX_TIMEOUT` |
+| Codex | 5400s | `CODEX_TIMEOUT` |
 | Claude | 300s | `CLAUDE_TIMEOUT` |
 | Gemini | 300s | `GEMINI_TIMEOUT` |
 

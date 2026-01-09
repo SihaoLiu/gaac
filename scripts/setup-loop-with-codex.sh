@@ -17,6 +17,7 @@ set -euo pipefail
 # Default Codex model and reasoning effort
 DEFAULT_CODEX_MODEL="gpt-5.2-codex"
 DEFAULT_CODEX_EFFORT="xhigh"
+DEFAULT_CODEX_TIMEOUT=5400
 DEFAULT_MAX_ITERATIONS=42
 
 # ========================================
@@ -29,6 +30,7 @@ MAX_EXPLICITLY_SET=false
 INFINITE_MODE=false
 CODEX_MODEL="$DEFAULT_CODEX_MODEL"
 CODEX_EFFORT="$DEFAULT_CODEX_EFFORT"
+CODEX_TIMEOUT="$DEFAULT_CODEX_TIMEOUT"
 
 show_help() {
     cat << 'HELP_EOF'
@@ -47,6 +49,8 @@ OPTIONS:
                        (cannot be used with --max, requires confirmation)
   --codex-model <MODEL:EFFORT>
                        Codex model and reasoning effort (default: gpt-5.2-codex:xhigh)
+  --codex-timeout <SECONDS>
+                       Timeout for each Codex review in seconds (default: 5400)
   -h, --help           Show this help message
 
 DESCRIPTION:
@@ -69,6 +73,7 @@ EXAMPLES:
   /gaac:loop-with-codex-review docs/impl.md --max 20
   /gaac:loop-with-codex-review plan.md --infinite
   /gaac:loop-with-codex-review plan.md --codex-model gpt-5.2-codex:high
+  /gaac:loop-with-codex-review plan.md --codex-timeout 7200  # 2 hour timeout
 
 STOPPING:
   - /gaac:cancel-loop-with-codex   Cancel the active loop
@@ -123,6 +128,18 @@ while [[ $# -gt 0 ]]; do
                 CODEX_MODEL="$2"
                 CODEX_EFFORT="$DEFAULT_CODEX_EFFORT"
             fi
+            shift 2
+            ;;
+        --codex-timeout)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --codex-timeout requires a number argument (seconds)" >&2
+                exit 1
+            fi
+            if ! [[ "$2" =~ ^[0-9]+$ ]]; then
+                echo "Error: --codex-timeout must be a positive integer (seconds), got: $2" >&2
+                exit 1
+            fi
+            CODEX_TIMEOUT="$2"
             shift 2
             ;;
         -*)
@@ -262,6 +279,7 @@ current_round: 0
 max_iterations: $MAX_ITERATIONS
 codex_model: $CODEX_MODEL
 codex_effort: $CODEX_EFFORT
+codex_timeout: $CODEX_TIMEOUT
 plan_file: $PLAN_FILE
 started_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 ---
@@ -301,6 +319,7 @@ Plan File: $PLAN_FILE ($LINE_COUNT lines)
 Max Iterations: $MAX_DISPLAY
 Codex Model: $CODEX_MODEL
 Codex Effort: $CODEX_EFFORT
+Codex Timeout: ${CODEX_TIMEOUT}s
 Loop Directory: $LOOP_DIR
 
 The loop is now active. When you try to exit:

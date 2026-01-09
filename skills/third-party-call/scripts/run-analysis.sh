@@ -197,7 +197,7 @@ echo ""
 
 echo "Running $TOOL for analysis..."
 
-TIMEOUT="${CODEX_TIMEOUT:-600}"
+TIMEOUT="${CODEX_TIMEOUT:-5400}"
 EXIT_CODE=0
 
 if [ "$TOOL" = "codex" ]; then
