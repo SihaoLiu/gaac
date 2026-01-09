@@ -1,6 +1,6 @@
 # GAAC - GitHub as a Context
 
-**Current Version: 1.1.2**
+**Current Version: 1.1.3**
 
 A Claude Code plugin that implements the "GitHub as a Context" methodology for AI-native software development. GAAC uses GitHub's native features (Issues, PRs, Projects) as persistent context storage for LLM coding agents, providing a structured workflow from research to implementation.
 
@@ -24,15 +24,12 @@ The `loop-with-codex-review` command demonstrates GAAC's core philosophy: **Iter
 
 ### How It Works
 
-```
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│   Your Plan      │────>│  Claude Implements│────>│  Codex Reviews   │
-│   (plan.md)      │     │  & Summarizes     │     │  & Critiques     │
-└──────────────────┘     └──────────────────┘     └────────┬─────────┘
-                                   ^                       │
-                                   │    Feedback Loop      │
-                                   └───────────────────────┘
-                                   (until COMPLETE or max iterations)
+```mermaid
+flowchart LR
+    Plan["Your Plan<br/>(plan.md)"] --> Claude["Claude Implements<br/>& Summarizes"]
+    Claude --> Codex["Codex Reviews<br/>& Critiques"]
+    Codex -->|Feedback Loop| Claude
+    Codex -->|COMPLETE or max iterations| Done((Done))
 ```
 
 ### Step 1: Create Your Plan
