@@ -295,6 +295,7 @@ cat > "$LOOP_DIR/round-0-prompt.md" << EOF
 Read and execute below with ultrathink
 
 For all tasks that need to be completed, please create Todos to track each item in order of importance.
+You are strictly prohibited from only addressing the most important issues - you MUST create Todos for ALL discovered issues and attempt to resolve each one.
 
 $(cat "$PLAN_FILE")
 

@@ -357,6 +357,7 @@ cat > "$NEXT_PROMPT_FILE" << EOF
 Your work is not finished. Read and execute the below with ultrathink.
 
 For all tasks that need to be completed, please create Todos to track each item in order of importance.
+You are strictly prohibited from only addressing the most important issues - you MUST create Todos for ALL discovered issues and attempt to resolve each one.
 
 ---
 Below is Codex's review result:
