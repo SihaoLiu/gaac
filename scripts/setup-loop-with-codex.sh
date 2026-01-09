@@ -77,13 +77,13 @@ STOPPING:
 
 MONITORING:
   # View current state:
-  cat .claude/gaac-loop.local/*/state.md
+  cat .gaac-loop.local/*/state.md
 
   # View latest summary:
-  cat .claude/gaac-loop.local/*/round-*-summary.md | tail -50
+  cat .gaac-loop.local/*/round-*-summary.md | tail -50
 
   # View Codex review:
-  cat .claude/gaac-loop.local/*/round-*-review-result.md | tail -50
+  cat .gaac-loop.local/*/round-*-review-result.md | tail -50
 HELP_EOF
     exit 0
 }
@@ -235,7 +235,7 @@ fi
 # ========================================
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
-LOOP_BASE_DIR="$PROJECT_ROOT/.claude/gaac-loop.local"
+LOOP_BASE_DIR="$PROJECT_ROOT/.gaac-loop.local"
 
 # Create timestamp for this loop session
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)

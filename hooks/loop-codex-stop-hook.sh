@@ -5,7 +5,7 @@
 # Intercepts Claude's exit attempts and uses Codex to review work.
 # If Codex doesn't confirm completion, blocks exit and feeds review back.
 #
-# State directory: .claude/gaac-loop.local/<timestamp>/
+# State directory: .gaac-loop.local/<timestamp>/
 # State file: state.md (current_round, max_iterations, codex config)
 # Summary file: round-N-summary.md (Claude's work summary)
 # Review prompt: round-N-review-prompt.md (prompt sent to Codex)
@@ -39,7 +39,7 @@ fi
 # ========================================
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
-LOOP_BASE_DIR="$PROJECT_ROOT/.claude/gaac-loop.local"
+LOOP_BASE_DIR="$PROJECT_ROOT/.gaac-loop.local"
 
 # Find the most recent active loop directory
 find_active_loop() {

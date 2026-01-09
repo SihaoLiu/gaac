@@ -1,1 +1,4 @@
 wip
+
+# GAAC loop state directory (used by loop-with-codex-review)
+.gaac-loop.local/
