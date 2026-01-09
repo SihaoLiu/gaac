@@ -115,6 +115,62 @@ Do NOT proceed to Codex review until all todos are finished. This saves time and
 fi
 
 # ========================================
+# Quick Check: Git Clean and Pushed?
+# ========================================
+# Before running expensive Codex review, check if all changes have been
+# committed and pushed. This ensures work is properly saved.
+
+# Check if git is available and we're in a git repo
+if command -v git &>/dev/null && git rev-parse --git-dir &>/dev/null 2>&1; then
+    GIT_ISSUES=""
+
+    # Check for uncommitted changes (staged or unstaged)
+    GIT_STATUS=$(git status --porcelain 2>/dev/null)
+    if [[ -n "$GIT_STATUS" ]]; then
+        GIT_ISSUES="uncommitted changes"
+    fi
+
+    # Check if local branch is ahead of remote (unpushed commits)
+    GIT_AHEAD=$(git status -sb 2>/dev/null | grep -o 'ahead [0-9]*' || true)
+    if [[ -n "$GIT_AHEAD" ]]; then
+        if [[ -n "$GIT_ISSUES" ]]; then
+            GIT_ISSUES="$GIT_ISSUES and unpushed commits"
+        else
+            GIT_ISSUES="unpushed commits"
+        fi
+    fi
+
+    if [[ -n "$GIT_ISSUES" ]]; then
+        # Git is not clean - block and remind Claude to commit and push
+        REASON="# Git Not Clean
+
+You are trying to stop, but you have **$GIT_ISSUES**.
+
+**Required Actions**:
+1. Stage all changes: \`git add -A\`
+2. Commit with a descriptive message following project conventions
+3. Push to remote: \`git push\`
+
+**Important Rules**:
+- Commit message must follow project conventions
+- AI tools (Claude, Codex, etc.) must NOT have authorship in commits
+- Do NOT include \`Co-Authored-By: Claude\` or similar AI attribution
+
+After committing and pushing all changes, you may attempt to exit again."
+
+        jq -n \
+            --arg reason "$REASON" \
+            --arg msg "Loop: Blocked - $GIT_ISSUES detected, please commit and push first" \
+            '{
+                "decision": "block",
+                "reason": $reason,
+                "systemMessage": $msg
+            }'
+        exit 0
+    fi
+fi
+
+# ========================================
 # Parse State File
 # ========================================
 
