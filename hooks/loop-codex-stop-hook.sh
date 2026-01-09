@@ -230,7 +230,7 @@ CODEX_ARGS=("-m" "$CODEX_MODEL")
 if [[ -n "$CODEX_EFFORT" ]]; then
     CODEX_ARGS+=("-c" "model_reasoning_effort=${CODEX_EFFORT}")
 fi
-CODEX_ARGS+=("-a" "full-auto" "-w" "-C" "$PROJECT_ROOT")
+CODEX_ARGS+=("--full-auto" "-C" "$PROJECT_ROOT")
 
 # Save the command for debugging
 CODEX_PROMPT_CONTENT=$(cat "$REVIEW_PROMPT_FILE")
