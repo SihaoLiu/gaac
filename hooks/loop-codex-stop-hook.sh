@@ -123,11 +123,44 @@ fi
 # Check if git is available and we're in a git repo
 if command -v git &>/dev/null && git rev-parse --git-dir &>/dev/null 2>&1; then
     GIT_ISSUES=""
+    SPECIAL_NOTES=""
 
     # Check for uncommitted changes (staged or unstaged)
     GIT_STATUS=$(git status --porcelain 2>/dev/null)
     if [[ -n "$GIT_STATUS" ]]; then
         GIT_ISSUES="uncommitted changes"
+
+        # Check for special cases in untracked files
+        UNTRACKED=$(echo "$GIT_STATUS" | grep '^??' || true)
+
+        # Check if .gaac-loop.local is untracked
+        if echo "$UNTRACKED" | grep -q '\.gaac-loop\.local'; then
+            SPECIAL_NOTES="$SPECIAL_NOTES
+**Special Case - .gaac-loop.local detected**:
+The \`.gaac-loop.local/\` directory is created by gaac:loop-with-codex-review and should NOT be committed.
+Please add it to .gitignore:
+\`\`\`bash
+echo '.gaac*local*' >> .gitignore
+git add .gitignore
+\`\`\`
+"
+        fi
+
+        # Check for other untracked files (potential artifacts)
+        OTHER_UNTRACKED=$(echo "$UNTRACKED" | grep -v '\.gaac-loop\.local' || true)
+        if [[ -n "$OTHER_UNTRACKED" ]]; then
+            SPECIAL_NOTES="$SPECIAL_NOTES
+**Note on Untracked Files**:
+Some untracked files may be build artifacts, test outputs, or runtime-generated files.
+These should typically be added to \`.gitignore\` rather than committed:
+- Build outputs (e.g., \`target/\`, \`build/\`, \`dist/\`)
+- Dependencies (e.g., \`node_modules/\`, \`vendor/\`)
+- IDE/editor files (e.g., \`.idea/\`, \`.vscode/\`)
+- Log files, cache files, temporary files
+
+Review untracked files and add appropriate patterns to \`.gitignore\`.
+"
+        fi
     fi
 
     # Check if local branch is ahead of remote (unpushed commits)
@@ -145,11 +178,12 @@ if command -v git &>/dev/null && git rev-parse --git-dir &>/dev/null 2>&1; then
         REASON="# Git Not Clean
 
 You are trying to stop, but you have **$GIT_ISSUES**.
-
+$SPECIAL_NOTES
 **Required Actions**:
-1. Stage all changes: \`git add -A\`
-2. Commit with a descriptive message following project conventions
-3. Push to remote: \`git push\`
+1. Review untracked files - add build artifacts to \`.gitignore\`
+2. Stage real changes: \`git add <files>\` (or \`git add -A\` if all files should be tracked)
+3. Commit with a descriptive message following project conventions
+4. Push to remote: \`git push\`
 
 **Important Rules**:
 - Commit message must follow project conventions
