@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# PreToolUse Hook: Validate and correct Write paths for loop-with-codex-review
+# PreToolUse Hook: Validate Write paths for loop-with-codex-review
 #
 # This hook intercepts Write tool calls and ensures summary files are written
 # to the correct absolute path within the project's .gaac-loop.local directory.
@@ -14,10 +14,11 @@
 # Problem 3: Claude sometimes writes round-*-summary.md to completely wrong
 # locations (e.g., .claude/round-9-summary.md instead of .gaac-loop.local/)
 #
-# Solution: This hook detects loop-related files and:
-# - Auto-corrects wrong directory paths
-# - Validates round numbers and either corrects or rejects with guidance
-# - Redirects summary files written to wrong locations
+# Solution: This hook detects loop-related files and REJECTS with clear guidance
+# pointing to the correct path. We do NOT auto-correct because:
+# - Auto-correction reinforces bad behavior (Claude thinks it was correct)
+# - Explicit rejection teaches Claude the correct pattern
+# - Rejection logic is simpler and more robust than correction logic
 #
 
 set -euo pipefail
@@ -117,59 +118,21 @@ CURRENT_ROUND="${CURRENT_ROUND:-0}"
 
 if [[ "$IS_SUMMARY_FILE" == "true" ]] && [[ "$IN_GAAC_LOOP_DIR" == "false" ]]; then
     # Claude is writing a summary file to a completely wrong location
-    # Extract the round number from filename
-    if [[ "$CLAUDE_FILENAME" =~ ^round-([0-9]+)-summary\.md$ ]]; then
-        CLAUDE_ROUND="${BASH_REMATCH[1]}"
-    else
-        CLAUDE_ROUND="$CURRENT_ROUND"
-    fi
+    CORRECT_PATH="$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-summary.md"
 
-    # Determine correct filename (use current round)
-    CORRECT_FILENAME="round-${CURRENT_ROUND}-summary.md"
-    CORRECT_PATH="$ACTIVE_LOOP_DIR/$CORRECT_FILENAME"
+    REASON="# Wrong Summary Location
 
-    # Check if correct summary already exists
-    if [[ -f "$CORRECT_PATH" ]]; then
-        REASON="# Wrong Summary Location
+You are trying to write to \`$FILE_PATH\`, but summary files MUST be in the loop directory.
 
-You are trying to write to \`$FILE_PATH\`, but summary files must be in the loop directory.
-
-The summary file for round ${CURRENT_ROUND} already exists at:
+**Correct path for current round ${CURRENT_ROUND}**:
 \`\`\`
 $CORRECT_PATH
 \`\`\`
 
-**Required Action**:
-1. Read the existing summary file: \`$CORRECT_PATH\`
-2. Update it with your new progress instead of creating a new file
-3. Do NOT write summary files to other locations
+Please write your summary to the correct path above."
 
-Remember: All loop files must be written to \`$ACTIVE_LOOP_DIR/\`"
-
-        echo "$REASON" >&2
-        exit 2
-    fi
-
-    # Auto-correct to the correct path
-    CONTENT=$(echo "$HOOK_INPUT" | jq -r '.tool_input.content // ""')
-    REASON="Path corrected: $FILE_PATH -> $CORRECT_PATH (summary must be in loop directory)"
-
-    jq -n \
-        --arg file_path "$CORRECT_PATH" \
-        --arg content "$CONTENT" \
-        --arg reason "$REASON" \
-        '{
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "allow",
-                "permissionDecisionReason": $reason,
-                "updatedInput": {
-                    "file_path": $file_path,
-                    "content": $content
-                }
-            }
-        }'
-    exit 0
+    echo "$REASON" >&2
+    exit 2
 fi
 
 # ========================================
@@ -202,9 +165,6 @@ fi
 # Validate Round Number (for summary files)
 # ========================================
 
-CORRECT_FILENAME="$CLAUDE_FILENAME"
-NEEDS_ROUND_CORRECTION=false
-
 if [[ "$IS_SUMMARY_FILE" == "true" ]]; then
     # Extract round number from the filename Claude is trying to write
     if [[ "$CLAUDE_FILENAME" =~ ^round-([0-9]+)-summary\.md$ ]]; then
@@ -216,82 +176,51 @@ if [[ "$IS_SUMMARY_FILE" == "true" ]]; then
 
     # Check if round numbers match
     if [[ "$CLAUDE_ROUND" != "$CURRENT_ROUND" ]]; then
-        CORRECT_FILENAME="round-${CURRENT_ROUND}-summary.md"
-        CORRECT_SUMMARY_PATH="$ACTIVE_LOOP_DIR/$CORRECT_FILENAME"
+        CORRECT_PATH="$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-summary.md"
 
-        # Check if the correct summary file already exists
-        if [[ -f "$CORRECT_SUMMARY_PATH" ]]; then
-            # Summary for current round already exists
-            # REJECT and tell Claude to read and update the existing file
-            REASON="# Wrong Round Number
+        REASON="# Wrong Round Number
 
 You are trying to write to \`round-${CLAUDE_ROUND}-summary.md\`, but the current round is **${CURRENT_ROUND}**.
 
-The summary file for round ${CURRENT_ROUND} already exists at:
+**Correct path**:
 \`\`\`
-$CORRECT_SUMMARY_PATH
+$CORRECT_PATH
 \`\`\`
 
-**Required Action**:
-1. Read the existing summary file: \`$CORRECT_SUMMARY_PATH\`
-2. Update it with your new progress instead of creating a new file
-3. Do NOT increment the round number yourself - the loop hook manages round progression
+Do NOT increment the round number yourself - the loop hook manages round progression.
+Please write your summary to the correct path above."
 
-Remember: Only write to \`round-${CURRENT_ROUND}-summary.md\`. The round number advances only after Codex review."
-
-            echo "$REASON" >&2
-            exit 2
-        else
-            # Summary doesn't exist yet, auto-correct the filename
-            NEEDS_ROUND_CORRECTION=true
-        fi
+        echo "$REASON" >&2
+        exit 2
     fi
 fi
 
 # ========================================
-# Build Correct Path
+# Validate Directory Path
 # ========================================
 
-# The correct path should be: $ACTIVE_LOOP_DIR/$CORRECT_FILENAME
-CORRECT_PATH="$ACTIVE_LOOP_DIR/$CORRECT_FILENAME"
+# The correct path should be: $ACTIVE_LOOP_DIR/$CLAUDE_FILENAME
+CORRECT_PATH="$ACTIVE_LOOP_DIR/$CLAUDE_FILENAME"
 
-# Check if everything is already correct (path and round)
-if [[ "$FILE_PATH" == "$CORRECT_PATH" ]] && [[ "$NEEDS_ROUND_CORRECTION" == "false" ]]; then
-    # Path and round are correct, allow normally
-    exit 0
+# Check if the path is correct
+if [[ "$FILE_PATH" != "$CORRECT_PATH" ]]; then
+    REASON="# Wrong Directory Path
+
+You are trying to write to:
+\`\`\`
+$FILE_PATH
+\`\`\`
+
+But the correct path is:
+\`\`\`
+$CORRECT_PATH
+\`\`\`
+
+Please write to the correct path above."
+
+    echo "$REASON" >&2
+    exit 2
 fi
 
-# ========================================
-# Auto-Correct the Path (and optionally round)
-# ========================================
-
-# Output JSON to auto-approve with corrected path
-# This allows the write to proceed with the correct absolute path
-
-CONTENT=$(echo "$HOOK_INPUT" | jq -r '.tool_input.content // ""')
-
-# Build the reason message
-if [[ "$NEEDS_ROUND_CORRECTION" == "true" ]]; then
-    REASON="Path and round corrected: round-${CLAUDE_ROUND} -> round-${CURRENT_ROUND}, path: $FILE_PATH -> $CORRECT_PATH"
-else
-    REASON="Path corrected from $FILE_PATH to $CORRECT_PATH"
-fi
-
-# Build the corrected output
-jq -n \
-    --arg file_path "$CORRECT_PATH" \
-    --arg content "$CONTENT" \
-    --arg reason "$REASON" \
-    '{
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "allow",
-            "permissionDecisionReason": $reason,
-            "updatedInput": {
-                "file_path": $file_path,
-                "content": $content
-            }
-        }
-    }'
-
+# Path is correct, allow the write
 exit 0
