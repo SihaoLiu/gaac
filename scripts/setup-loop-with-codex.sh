@@ -302,6 +302,7 @@ $(cat "$PLAN_FILE")
 Note: You MUST NOT try to exit \`ralph-loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-with-codex\`
 
 After completing the work, please:
+0. If you have access to the \`code-simplifier\` agent, use it to review and optimize the code you just wrote
 1. Commit your changes with a descriptive commit message
 2. Push the commit to the remote repository
 3. Write your work summary into @$SUMMARY_PATH
