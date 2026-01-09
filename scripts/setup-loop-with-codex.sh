@@ -294,6 +294,8 @@ SUMMARY_PATH="$LOOP_DIR/round-0-summary.md"
 cat > "$LOOP_DIR/round-0-prompt.md" << EOF
 Read and execute below with ultrathink
 
+For all tasks that need to be completed, please create Todos to track each item in order of importance.
+
 $(cat "$PLAN_FILE")
 
 Note: You MUST NOT try to exit \`ralph-loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-with-codex\`

@@ -356,6 +356,8 @@ NEXT_SUMMARY_FILE="$LOOP_DIR/round-${NEXT_ROUND}-summary.md"
 cat > "$NEXT_PROMPT_FILE" << EOF
 Your work is not finished. Read and execute the below with ultrathink.
 
+For all tasks that need to be completed, please create Todos to track each item in order of importance.
+
 ---
 Below is Codex's review result:
 <!-- CODEX's REVIEW RESULT START -->
