@@ -54,7 +54,7 @@ if is_round_file_type "$FILE_PATH_LOWER" "summary"; then
 fi
 
 IN_GAAC_LOOP_DIR=false
-if echo "$FILE_PATH" | grep -q '\.gaac-loop\.local/'; then
+if is_in_gaac_loop_dir "$FILE_PATH"; then
     IN_GAAC_LOOP_DIR=true
 fi
 
@@ -66,7 +66,7 @@ fi
 # For state.md and goal-tracker.md in .gaac-loop.local, we need further validation
 # For other files in .gaac-loop.local that aren't summaries, allow them
 if [[ "$IN_GAAC_LOOP_DIR" == "true" ]] && [[ "$IS_SUMMARY_FILE" == "false" ]]; then
-    if ! echo "$FILE_PATH_LOWER" | grep -qE '(state|goal-tracker)\.md$'; then
+    if ! is_state_file_path "$FILE_PATH_LOWER" && ! is_goal_tracker_path "$FILE_PATH_LOWER"; then
         exit 0
     fi
 fi
@@ -86,30 +86,21 @@ fi
 CURRENT_ROUND=$(get_current_round "$ACTIVE_LOOP_DIR/state.md")
 
 # ========================================
+# Block State File Writes
+# ========================================
+
+if is_state_file_path "$FILE_PATH_LOWER"; then
+    state_file_blocked_message >&2
+    exit 2
+fi
+
+# ========================================
 # Block Goal Tracker After Round 0
 # ========================================
 
-if echo "$FILE_PATH" | grep -qE 'goal-tracker\.md$' && [[ "$CURRENT_ROUND" -gt 0 ]]; then
+if is_goal_tracker_path "$FILE_PATH_LOWER" && [[ "$CURRENT_ROUND" -gt 0 ]]; then
     SUMMARY_FILE="$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-summary.md"
-    cat >&2 << EOF
-# Goal Tracker Write Blocked (Round ${CURRENT_ROUND})
-
-After Round 0, only Codex can modify the Goal Tracker.
-
-**To request changes**, document them in your summary:
-\`$SUMMARY_FILE\`
-
-Use this format:
-\`\`\`markdown
-## Goal Tracker Update Request
-
-### Requested Changes:
-- [Describe what should be changed]
-
-### Justification:
-[Explain why this change is needed]
-\`\`\`
-EOF
+    goal_tracker_blocked_message "$CURRENT_ROUND" "$SUMMARY_FILE" >&2
     exit 2
 fi
 

@@ -56,7 +56,7 @@ fi
 
 # Check if path contains .gaac-loop.local
 IN_GAAC_LOOP_DIR=false
-if echo "$FILE_PATH" | grep -q '\.gaac-loop\.local/'; then
+if is_in_gaac_loop_dir "$FILE_PATH"; then
     IN_GAAC_LOOP_DIR=true
 fi
 

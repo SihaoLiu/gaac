@@ -2,9 +2,11 @@
 #
 # PreToolUse Hook: Validate Bash commands for loop-with-codex-review
 #
-# Blocks attempts to bypass Write hook using shell redirection:
-# - cat/echo/printf > round-*-*.md
-# - tee round-*-*.md
+# Blocks attempts to bypass Write/Edit hooks using shell commands:
+# - cat/echo/printf > file.md (redirection)
+# - tee file.md
+# - sed -i file.md (in-place edit)
+# - goal-tracker.md modifications after Round 0
 #
 
 set -euo pipefail
@@ -28,55 +30,14 @@ COMMAND=$(echo "$HOOK_INPUT" | jq -r '.tool_input.command // ""')
 COMMAND_LOWER=$(to_lower "$COMMAND")
 
 # ========================================
-# Detect Writes to Loop Files
-# ========================================
-
-# Pattern for round files (case-insensitive via lowercase command)
-ROUND_FILE_PATTERN='round-[0-9]+-\(summary\|todos\|prompt\)\.md'
-
-TARGET_FILE=""
-FILE_TYPE=""
-
-# Check for redirection patterns: > or >> to round-*-*.md
-if echo "$COMMAND_LOWER" | grep -qE ">[[:space:]]*[^[:space:]]*round-[0-9]+-(summary|todos|prompt)\.md"; then
-    TARGET_FILE=$(echo "$COMMAND_LOWER" | grep -oE "[^[:space:]]*round-[0-9]+-(summary|todos|prompt)\.md" | head -1)
-fi
-
-# Check for tee command
-if [[ -z "$TARGET_FILE" ]] && echo "$COMMAND_LOWER" | grep -qE "tee[[:space:]]+(-a[[:space:]]+)?[^[:space:]]*round-[0-9]+-(summary|todos|prompt)\.md"; then
-    TARGET_FILE=$(echo "$COMMAND_LOWER" | grep -oE "[^[:space:]]*round-[0-9]+-(summary|todos|prompt)\.md" | head -1)
-fi
-
-if [[ -z "$TARGET_FILE" ]]; then
-    exit 0
-fi
-
-# Determine file type
-if echo "$TARGET_FILE" | grep -qE 'summary\.md$'; then
-    FILE_TYPE="summary"
-elif echo "$TARGET_FILE" | grep -qE 'todos\.md$'; then
-    FILE_TYPE="todos"
-elif echo "$TARGET_FILE" | grep -qE 'prompt\.md$'; then
-    FILE_TYPE="prompt"
-fi
-
-# ========================================
-# Block Todos Files
-# ========================================
-
-if [[ "$FILE_TYPE" == "todos" ]]; then
-    todos_blocked_message "Bash" >&2
-    exit 2
-fi
-
-# ========================================
-# Find Active Loop and Current Round
+# Find Active Loop (needed for multiple checks)
 # ========================================
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 LOOP_BASE_DIR="$PROJECT_ROOT/.gaac-loop.local"
 ACTIVE_LOOP_DIR=$(find_active_loop "$LOOP_BASE_DIR")
 
+# If no active loop, allow all commands
 if [[ -z "$ACTIVE_LOOP_DIR" ]]; then
     exit 0
 fi
@@ -84,35 +45,60 @@ fi
 CURRENT_ROUND=$(get_current_round "$ACTIVE_LOOP_DIR/state.md")
 
 # ========================================
-# Extract and Validate Round Number
+# Block State File Modifications (All Rounds)
 # ========================================
+# State file is managed by the loop system, not Claude
 
-CLAUDE_ROUND=""
-if [[ "$TARGET_FILE" =~ round-([0-9]+)-(summary|todos|prompt)\.md ]]; then
-    CLAUDE_ROUND="${BASH_REMATCH[1]}"
-fi
-
-CORRECT_PATH="$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-${FILE_TYPE}.md"
-
-if [[ -n "$CLAUDE_ROUND" ]] && [[ "$CLAUDE_ROUND" != "$CURRENT_ROUND" ]]; then
-    cat >&2 << EOF
-# Bash Write Blocked: Wrong Round Number
-
-You are trying to write to \`round-${CLAUDE_ROUND}-${FILE_TYPE}.md\`, but the current round is **${CURRENT_ROUND}**.
-
-**Use the Write tool with**: \`$CORRECT_PATH\`
-
-Do NOT bypass Write validation with Bash commands.
-EOF
+if command_modifies_file "$COMMAND_LOWER" "state\.md"; then
+    state_file_blocked_message >&2
     exit 2
 fi
 
-# Block any Bash write to loop files (use Write tool instead)
-cat >&2 << EOF
-# Bash Write Blocked: Use Write Tool
+# ========================================
+# Block Goal Tracker Modifications (All Rounds)
+# ========================================
+# Round 0: prompt to use Write/Edit
+# Round > 0: prompt to put request in summary
 
-Do not use Bash to write ${FILE_TYPE} files.
+if command_modifies_file "$COMMAND_LOWER" "goal-tracker\.md"; then
+    if [[ "$CURRENT_ROUND" -eq 0 ]]; then
+        GOAL_TRACKER_PATH="$ACTIVE_LOOP_DIR/goal-tracker.md"
+        goal_tracker_bash_blocked_message "$GOAL_TRACKER_PATH" >&2
+    else
+        SUMMARY_FILE="$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-summary.md"
+        goal_tracker_blocked_message "$CURRENT_ROUND" "$SUMMARY_FILE" >&2
+    fi
+    exit 2
+fi
 
-**Use the Write tool with**: \`$CORRECT_PATH\`
-EOF
-exit 2
+# ========================================
+# Block Prompt File Modifications (All Rounds)
+# ========================================
+# Prompt files are read-only - they contain instructions FROM Codex TO Claude
+
+if command_modifies_file "$COMMAND_LOWER" "round-[0-9]+-prompt\.md"; then
+    prompt_write_blocked_message >&2
+    exit 2
+fi
+
+# ========================================
+# Block Summary File Modifications (All Rounds)
+# ========================================
+# Summary files should be written using Write or Edit tools for proper validation
+
+if command_modifies_file "$COMMAND_LOWER" "round-[0-9]+-summary\.md"; then
+    CORRECT_PATH="$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-summary.md"
+    summary_bash_blocked_message "$CORRECT_PATH" >&2
+    exit 2
+fi
+
+# ========================================
+# Block Todos File Modifications (All Rounds)
+# ========================================
+
+if command_modifies_file "$COMMAND_LOWER" "round-[0-9]+-todos\.md"; then
+    todos_blocked_message "Bash" >&2
+    exit 2
+fi
+
+exit 0
