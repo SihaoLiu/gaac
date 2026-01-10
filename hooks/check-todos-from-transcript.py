@@ -115,9 +115,10 @@ def main():
             incomplete.append(f"  - [{status}] {content}")
 
     if incomplete:
-        # Output incomplete todos to stderr
-        print("INCOMPLETE_TODOS", file=sys.stdout)
-        print("\n".join(incomplete), file=sys.stderr)
+        # Output marker and incomplete todos both to stdout
+        # (Using mixed stdout/stderr causes ordering issues due to buffering)
+        print("INCOMPLETE_TODOS")
+        print("\n".join(incomplete))
         sys.exit(1)
 
     # All todos completed
