@@ -64,9 +64,9 @@ fi
 
 # If in .gaac-loop.local but not a file we care about, check further
 if [[ "$IN_GAAC_LOOP_DIR" == "true" ]] && [[ "$IS_SUMMARY_FILE" == "false" ]]; then
-    # For prompt files and state files, we don't validate round numbers
-    # But we still validate the path
-    if ! echo "$FILE_PATH" | grep -qE 'round-[0-9]+-prompt\.md$|state\.md$'; then
+    # For prompt files, state files, and goal-tracker, we don't validate round numbers
+    # But we still validate the path to ensure correct directory
+    if ! echo "$FILE_PATH" | grep -qE 'round-[0-9]+-prompt\.md$|state\.md$|goal-tracker\.md$'; then
         exit 0
     fi
 fi
@@ -111,6 +111,57 @@ STATE_FILE="$ACTIVE_LOOP_DIR/state.md"
 FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE" 2>/dev/null || echo "")
 CURRENT_ROUND=$(echo "$FRONTMATTER" | grep '^current_round:' | sed 's/current_round: *//' | tr -d ' ')
 CURRENT_ROUND="${CURRENT_ROUND:-0}"
+
+# ========================================
+# Restrict goal-tracker.md to Round 0 Only
+# ========================================
+
+IS_GOAL_TRACKER=false
+if echo "$FILE_PATH" | grep -qE 'goal-tracker\.md$'; then
+    IS_GOAL_TRACKER=true
+fi
+
+if [[ "$IS_GOAL_TRACKER" == "true" ]] && [[ "$CURRENT_ROUND" -gt 0 ]]; then
+    # Claude is trying to write goal-tracker.md after Round 0
+    # This is not allowed - changes must go through Codex review
+    SUMMARY_FILE="$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-summary.md"
+
+    REASON="# Goal Tracker Write Blocked (Round ${CURRENT_ROUND})
+
+You are trying to modify \`goal-tracker.md\` in **Round ${CURRENT_ROUND}**.
+
+**This is not allowed.** After Round 0, only Codex can modify the Goal Tracker.
+
+## How to Request Changes
+
+If you believe the Goal Tracker needs to be updated (e.g., plan evolution, new issues discovered, task completion), you must:
+
+1. **Document the requested changes in your summary**:
+   \`\`\`
+   $SUMMARY_FILE
+   \`\`\`
+
+2. **Use this format in your summary**:
+   \`\`\`markdown
+   ## Goal Tracker Update Request
+
+   ### Requested Changes:
+   - [Describe what should be changed]
+   - [E.g., \"Move Task X to Completed\"]
+   - [E.g., \"Add new issue: Y discovered\"]
+   - [E.g., \"Update Plan Evolution Log: changed approach because Z\"]
+
+   ### Justification:
+   [Explain why this change is needed and how it serves the Ultimate Goal]
+   \`\`\`
+
+3. **Codex will review your request** and update the Goal Tracker if justified.
+
+This process ensures that all Goal Tracker changes are reviewed and approved by an independent reviewer."
+
+    echo "$REASON" >&2
+    exit 2
+fi
 
 # ========================================
 # Handle Summary Files Written to Wrong Location

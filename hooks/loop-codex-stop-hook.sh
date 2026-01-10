@@ -281,6 +281,79 @@ After writing the summary, you may attempt to exit again."
 fi
 
 # ========================================
+# Check Goal Tracker Initialization (Round 0 only)
+# ========================================
+
+GOAL_TRACKER_FILE="$LOOP_DIR/goal-tracker.md"
+
+if [[ "$CURRENT_ROUND" -eq 0 ]] && [[ -f "$GOAL_TRACKER_FILE" ]]; then
+    # Check if goal-tracker.md still contains placeholder text
+    GOAL_TRACKER_CONTENT=$(cat "$GOAL_TRACKER_FILE")
+
+    HAS_GOAL_PLACEHOLDER=false
+    HAS_AC_PLACEHOLDER=false
+    HAS_TASKS_PLACEHOLDER=false
+
+    if echo "$GOAL_TRACKER_CONTENT" | grep -q '\[To be extracted from plan'; then
+        HAS_GOAL_PLACEHOLDER=true
+    fi
+
+    if echo "$GOAL_TRACKER_CONTENT" | grep -q '\[To be defined by Claude'; then
+        HAS_AC_PLACEHOLDER=true
+    fi
+
+    if echo "$GOAL_TRACKER_CONTENT" | grep -q '\[To be populated by Claude'; then
+        HAS_TASKS_PLACEHOLDER=true
+    fi
+
+    # Build list of missing items
+    MISSING_ITEMS=""
+    if [[ "$HAS_GOAL_PLACEHOLDER" == "true" ]]; then
+        MISSING_ITEMS="$MISSING_ITEMS
+- **Ultimate Goal**: Still contains placeholder text"
+    fi
+    if [[ "$HAS_AC_PLACEHOLDER" == "true" ]]; then
+        MISSING_ITEMS="$MISSING_ITEMS
+- **Acceptance Criteria**: Still contains placeholder text"
+    fi
+    if [[ "$HAS_TASKS_PLACEHOLDER" == "true" ]]; then
+        MISSING_ITEMS="$MISSING_ITEMS
+- **Active Tasks**: Still contains placeholder text"
+    fi
+
+    if [[ -n "$MISSING_ITEMS" ]]; then
+        REASON="# Goal Tracker Not Initialized
+
+You are in **Round 0** and the Goal Tracker has not been properly initialized.
+
+**Missing items in \`$GOAL_TRACKER_FILE\`**:
+$MISSING_ITEMS
+
+**Required Actions**:
+1. Read \`$GOAL_TRACKER_FILE\`
+2. Replace placeholder text with actual content:
+   - Extract or define the **Ultimate Goal** from your understanding of the plan
+   - Define 3-7 specific, testable **Acceptance Criteria**
+   - Populate **Active Tasks** with tasks from the plan, mapping each to an AC
+3. Write the updated goal-tracker.md
+
+**IMPORTANT**: The IMMUTABLE SECTION can only be set in Round 0. After this round, it becomes read-only.
+
+After updating the Goal Tracker, you may attempt to exit again."
+
+        jq -n \
+            --arg reason "$REASON" \
+            --arg msg "Loop: Goal Tracker not initialized in Round 0" \
+            '{
+                "decision": "block",
+                "reason": $reason,
+                "systemMessage": $msg
+            }'
+        exit 0
+    fi
+fi
+
+# ========================================
 # Check Max Iterations
 # ========================================
 
@@ -317,7 +390,96 @@ REVIEW_RESULT_FILE="$LOOP_DIR/round-${CURRENT_ROUND}-review-result.md"
 
 SUMMARY_CONTENT=$(cat "$SUMMARY_FILE")
 
-cat > "$REVIEW_PROMPT_FILE" << EOF
+# Shared prompt section for Goal Tracker Update Requests (used in both Full Alignment and Regular reviews)
+GOAL_TRACKER_UPDATE_SECTION="## Goal Tracker Update Requests (YOUR RESPONSIBILITY)
+
+**Important**: Claude cannot directly modify \`goal-tracker.md\` after Round 0. If Claude's summary contains a \"Goal Tracker Update Request\" section, YOU must:
+
+1. **Evaluate the request**: Is the change justified? Does it serve the Ultimate Goal?
+2. **If approved**: Update @$GOAL_TRACKER_FILE yourself with the requested changes:
+   - Move tasks between Active/Completed/Deferred sections as appropriate
+   - Add entries to \"Plan Evolution Log\" with round number and justification
+   - Add new issues to \"Open Issues\" if discovered
+   - **NEVER modify the IMMUTABLE SECTION** (Ultimate Goal and Acceptance Criteria)
+3. **If rejected**: Include in your review why the request was rejected
+
+Common update requests you should handle:
+- Task completion: Move from \"Active Tasks\" to \"Completed and Verified\"
+- New issues: Add to \"Open Issues\" table
+- Plan changes: Add to \"Plan Evolution Log\" with your assessment
+- Deferrals: Only allow with strong justification; add to \"Explicitly Deferred\""
+
+# Determine if this is a Full Alignment Check round (every 5 rounds)
+FULL_ALIGNMENT_CHECK=false
+if [[ $((CURRENT_ROUND % 5)) -eq 4 ]]; then
+    FULL_ALIGNMENT_CHECK=true
+fi
+
+# Build the review prompt
+if [[ "$FULL_ALIGNMENT_CHECK" == "true" ]]; then
+    # Full Alignment Check prompt
+    cat > "$REVIEW_PROMPT_FILE" << EOF
+# FULL GOAL ALIGNMENT CHECK - Round $CURRENT_ROUND
+
+This is a **mandatory checkpoint** (every 5 rounds). You must conduct a comprehensive goal alignment audit.
+
+---
+## Claude's Work Summary
+<!-- CLAUDE's WORK SUMMARY START -->
+$SUMMARY_CONTENT
+<!-- CLAUDE's WORK SUMMARY  END  -->
+---
+
+## Part 1: Goal Tracker Audit (MANDATORY)
+
+Read @$GOAL_TRACKER_FILE and verify:
+
+### 1.1 Acceptance Criteria Status
+For EACH Acceptance Criterion in the IMMUTABLE SECTION:
+| AC | Status | Evidence (if MET) | Blocker (if NOT MET) | Justification (if DEFERRED) |
+|----|--------|-------------------|---------------------|----------------------------|
+| AC-1 | MET / PARTIAL / NOT MET / DEFERRED | ... | ... | ... |
+| ... | ... | ... | ... | ... |
+
+### 1.2 Forgotten Items Detection
+Compare the original plan (@$PLAN_FILE) with the current goal-tracker:
+- Are there tasks that are neither in "Active", "Completed", nor "Deferred"?
+- Are there tasks marked "complete" in summaries but not verified?
+- List any forgotten items found.
+
+### 1.3 Deferred Items Audit
+For each item in "Explicitly Deferred":
+- Is the deferral justification still valid?
+- Should it be un-deferred based on current progress?
+- Does it contradict the Ultimate Goal?
+
+### 1.4 Goal Completion Summary
+\`\`\`
+Acceptance Criteria: X/Y met (Z deferred)
+Active Tasks: N remaining
+Estimated remaining rounds: ?
+Critical blockers: [list if any]
+\`\`\`
+
+## Part 2: Implementation Review
+
+- Conduct a deep critical review of the implementation
+- Verify Claude's claims match reality
+- Identify any gaps, bugs, or incomplete work
+- Reference @$DOCS_PATH for design documents
+
+## Part 3: $GOAL_TRACKER_UPDATE_SECTION
+
+## Part 4: Output Requirements
+
+- If issues found OR any AC is NOT MET without valid deferral, write your findings to @$REVIEW_RESULT_FILE
+- Include specific action items for Claude to address
+- If ALL ACs are MET or validly DEFERRED, and implementation is correct, write "COMPLETE" as the last line
+EOF
+
+else
+    # Regular review prompt with goal alignment section
+    cat > "$REVIEW_PROMPT_FILE" << EOF
 Based on @$PROMPT_FILE, Claude claims to have completed the work. Please conduct a thorough critical review to verify this.
 
 ---
@@ -327,22 +489,43 @@ $SUMMARY_CONTENT
 <!-- CLAUDE's WORK SUMMARY  END  -->
 ---
 
-Requirements:
+## Part 1: Implementation Review
+
 - Your task is to conduct a deep critical review, focusing on finding implementation issues and identifying gaps between "plan-design" and actual implementation.
 - Relevant top-level guidance documents, phased implementation plans, and other important documentation and implementation references are located under @$DOCS_PATH.
-- If Claude planned to defer any tasks to future phases in its summary, DO NOT follow its lead. Instead, you should force Claude to complete ALL tasks as planned. 
-  - Such deferred tasks are considered incomplete work and should be flagged in your review comments, requiring Claude to address them. 
+- If Claude planned to defer any tasks to future phases in its summary, DO NOT follow its lead. Instead, you should force Claude to complete ALL tasks as planned.
+  - Such deferred tasks are considered incomplete work and should be flagged in your review comments, requiring Claude to address them.
   - If Claude planned to defer any tasks, please explore the codebase in-depth and draft a detailed implementation plan. This plan should be included in your review comments for Claude to follow.
   - Your review should be meticulous and skeptical. Look for any discrepancies, missing features, incomplete implementations.
 - If Claude does not plan to defer any tasks, but honestly admits that some tasks are still pending (not yet completed), you should also include those pending tasks in your review.
   - Your review should elaborate on those unfinished tasks, explore the codebase, and draft an implementation plan.
   - A good engineering implementation plan should be **singular, directive, and definitive**, rather than discussing multiple possible implementation options.
   - The implementation plan should be **unambiguous**, internally consistent, and coherent from beginning to end, so that **Claude can execute the work accurately and without error**.
-- In short, your review comments can include: problems/findings/blockers; claims that don't match reality; implementation plans for deferred work (to be implemented now); implementation plans for unfinished work.
+
+## Part 2: Goal Alignment Check (MANDATORY)
+
+Read @$GOAL_TRACKER_FILE and verify:
+
+1. **Acceptance Criteria Progress**: For each AC, is progress being made? Are any ACs being ignored?
+2. **Forgotten Items**: Are there tasks from the original plan that are not tracked in Active/Completed/Deferred?
+3. **Deferred Items**: Are deferrals justified? Do they block any ACs?
+4. **Plan Evolution**: If Claude modified the plan, is the justification valid?
+
+Include a brief Goal Alignment Summary in your review:
+\`\`\`
+ACs: X/Y addressed | Forgotten items: N | Unjustified deferrals: N
+\`\`\`
+
+## Part 3: $GOAL_TRACKER_UPDATE_SECTION
+
+## Part 4: Output Requirements
+
+- In short, your review comments can include: problems/findings/blockers; claims that don't match reality; implementation plans for deferred work (to be implemented now); implementation plans for unfinished work; goal alignment issues.
 - If after your investigation the actual situation does not match what Claude claims to have completed, or there is pending work to be done, output your review comments to @$REVIEW_RESULT_FILE.
 - If after your investigation the actual situation matches what Claude claims, and there is no deferred or unfinished work, output your review result to the same file, and ensure the last line contains only the single word COMPLETE.
 - The word COMPLETE on the last line will stop Claude.
 EOF
+fi
 
 # ========================================
 # Run Codex Review
@@ -496,6 +679,9 @@ mv "$TEMP_FILE" "$STATE_FILE"
 NEXT_PROMPT_FILE="$LOOP_DIR/round-${NEXT_ROUND}-prompt.md"
 NEXT_SUMMARY_FILE="$LOOP_DIR/round-${NEXT_ROUND}-summary.md"
 
+# Check if this is a Full Alignment Check follow-up (round after every 5th)
+IS_POST_ALIGNMENT=$([[ $((CURRENT_ROUND % 5)) -eq 4 ]] && echo "true" || echo "false")
+
 cat > "$NEXT_PROMPT_FILE" << EOF
 Your work is not finished. Read and execute the below with ultrathink.
 
@@ -509,6 +695,35 @@ $REVIEW_CONTENT
 <!-- CODEX's REVIEW RESULT  END  -->
 ---
 
+## Goal Tracker Reference (READ-ONLY after Round 0)
+
+Before starting work, **read** @$GOAL_TRACKER_FILE to understand:
+- The Ultimate Goal and Acceptance Criteria you're working toward
+- Which tasks are Active, Completed, or Deferred
+- Any Plan Evolution that has occurred
+- Open Issues that need attention
+
+**IMPORTANT**: You CANNOT directly modify goal-tracker.md after Round 0.
+If you need to update the Goal Tracker, include a "Goal Tracker Update Request" section in your summary (see below).
+EOF
+
+# Add special instructions for post-Full Alignment Check rounds
+if [[ "$IS_POST_ALIGNMENT" == "true" ]]; then
+    cat >> "$NEXT_PROMPT_FILE" << EOF
+
+### Post-Alignment Check Action Items
+
+This round follows a Full Goal Alignment Check. Pay special attention to:
+- **Forgotten Items**: Codex may have identified tasks that were being ignored. Address them.
+- **AC Status**: If any Acceptance Criteria were marked NOT MET, prioritize work toward those.
+- **Deferred Items**: If any deferrals were flagged as unjustified, un-defer them now.
+EOF
+fi
+
+cat >> "$NEXT_PROMPT_FILE" << EOF
+
+---
+
 Note: You MUST NOT try to exit the \`ralph-loop-with-codex-review\` loop by lying, editing the loop state file, or executing \`cancel-loop-with-codex\`.
 
 After completing the work, please:
@@ -516,6 +731,22 @@ After completing the work, please:
 1. Commit your changes with a descriptive commit message
 2. Push the commit to the remote repository
 3. Write your work summary into @$NEXT_SUMMARY_FILE
+
+**If Goal Tracker needs updates**, include this section in your summary:
+\`\`\`markdown
+## Goal Tracker Update Request
+
+### Requested Changes:
+- [E.g., "Mark Task X as completed with evidence: tests pass"]
+- [E.g., "Add to Open Issues: discovered Y needs addressing"]
+- [E.g., "Plan Evolution: changed approach from A to B because..."]
+- [E.g., "Defer Task Z because... (impact on AC: none/minimal)"]
+
+### Justification:
+[Explain why these changes are needed and how they serve the Ultimate Goal]
+\`\`\`
+
+Codex will review your request and update the Goal Tracker if justified.
 EOF
 
 # Build system message

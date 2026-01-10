@@ -286,6 +286,100 @@ started_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
 
 # ========================================
+# Create Goal Tracker File
+# ========================================
+
+GOAL_TRACKER_FILE="$LOOP_DIR/goal-tracker.md"
+PLAN_CONTENT=$(cat "$PLAN_FILE")
+
+cat > "$GOAL_TRACKER_FILE" << 'GOAL_TRACKER_EOF'
+# Goal Tracker
+
+<!--
+This file tracks the ultimate goal, acceptance criteria, and plan evolution.
+It prevents goal drift by maintaining a persistent anchor across all rounds.
+
+RULES:
+- IMMUTABLE SECTION: Do not modify after initialization
+- MUTABLE SECTION: Update each round, but document all changes
+- Every task must be in one of: Active, Completed, or Deferred
+- Deferred items require explicit justification
+-->
+
+## IMMUTABLE SECTION
+<!-- Do not modify after initialization -->
+
+### Ultimate Goal
+GOAL_TRACKER_EOF
+
+# Extract goal from plan file (look for ## Goal, ## Objective, or first paragraph)
+# This is a heuristic - Claude will refine it in round 0
+GOAL_LINE=$(grep -i -m1 '^\s*##\s*\(goal\|objective\|purpose\)' "$PLAN_FILE" 2>/dev/null || echo "")
+if [[ -n "$GOAL_LINE" ]]; then
+    # Get the content after the heading
+    GOAL_SECTION=$(sed -n '/^\s*##\s*[Gg]oal\|^\s*##\s*[Oo]bjective\|^\s*##\s*[Pp]urpose/,/^\s*##/p' "$PLAN_FILE" | head -20 | tail -n +2 | head -10)
+    echo "$GOAL_SECTION" >> "$GOAL_TRACKER_FILE"
+else
+    # Use first non-empty, non-heading paragraph as goal description
+    echo "[To be extracted from plan by Claude in Round 0]" >> "$GOAL_TRACKER_FILE"
+    echo "" >> "$GOAL_TRACKER_FILE"
+    echo "Source plan: $PLAN_FILE" >> "$GOAL_TRACKER_FILE"
+fi
+
+cat >> "$GOAL_TRACKER_FILE" << 'GOAL_TRACKER_EOF'
+
+### Acceptance Criteria
+<!-- Each criterion must be independently verifiable -->
+<!-- Claude must extract or define these in Round 0 -->
+
+GOAL_TRACKER_EOF
+
+# Extract acceptance criteria from plan file (look for ## Acceptance, ## Criteria, ## Requirements)
+AC_SECTION=$(sed -n '/^\s*##\s*[Aa]cceptance\|^\s*##\s*[Cc]riteria\|^\s*##\s*[Rr]equirements/,/^\s*##/p' "$PLAN_FILE" 2>/dev/null | head -30 | tail -n +2 | head -25)
+if [[ -n "$AC_SECTION" ]]; then
+    echo "$AC_SECTION" >> "$GOAL_TRACKER_FILE"
+else
+    echo "[To be defined by Claude in Round 0 based on the plan]" >> "$GOAL_TRACKER_FILE"
+fi
+
+cat >> "$GOAL_TRACKER_FILE" << 'GOAL_TRACKER_EOF'
+
+---
+
+## MUTABLE SECTION
+<!-- Update each round with justification for changes -->
+
+### Plan Version: 1 (Updated: Round 0)
+
+#### Plan Evolution Log
+<!-- Document any changes to the plan with justification -->
+| Round | Change | Reason | Impact on AC |
+|-------|--------|--------|--------------|
+| 0 | Initial plan | - | - |
+
+#### Active Tasks
+<!-- Map each task to its target Acceptance Criterion -->
+| Task | Target AC | Status | Notes |
+|------|-----------|--------|-------|
+| [To be populated by Claude based on plan] | - | pending | - |
+
+### Completed and Verified
+<!-- Only move tasks here after Codex verification -->
+| AC | Task | Completed Round | Verified Round | Evidence |
+|----|------|-----------------|----------------|----------|
+
+### Explicitly Deferred
+<!-- Items here require strong justification -->
+| Task | Original AC | Deferred Since | Justification | When to Reconsider |
+|------|-------------|----------------|---------------|-------------------|
+
+### Open Issues
+<!-- Issues discovered during implementation -->
+| Issue | Discovered Round | Blocking AC | Resolution Path |
+|-------|-----------------|-------------|-----------------|
+GOAL_TRACKER_EOF
+
+# ========================================
 # Create Initial Prompt
 # ========================================
 
@@ -294,18 +388,55 @@ SUMMARY_PATH="$LOOP_DIR/round-0-summary.md"
 cat > "$LOOP_DIR/round-0-prompt.md" << EOF
 Read and execute below with ultrathink
 
+## Goal Tracker Setup (REQUIRED FIRST STEP)
+
+Before starting implementation, you MUST initialize the Goal Tracker:
+
+1. Read @$GOAL_TRACKER_FILE
+2. If the "Ultimate Goal" section says "[To be extracted...]", extract a clear goal statement from the plan
+3. If the "Acceptance Criteria" section says "[To be defined...]", define 3-7 specific, testable criteria
+4. Populate the "Active Tasks" table with tasks from the plan, mapping each to an AC
+5. Write the updated goal-tracker.md
+
+**IMPORTANT**: The IMMUTABLE SECTION can only be modified in Round 0. After this round, it becomes read-only.
+
+---
+
+## Implementation Plan
+
 For all tasks that need to be completed, please create Todos to track each item in order of importance.
 You are strictly prohibited from only addressing the most important issues - you MUST create Todos for ALL discovered issues and attempt to resolve each one.
 
 $(cat "$PLAN_FILE")
 
+---
+
+## Goal Tracker Rules
+
+Throughout your work, you MUST maintain the Goal Tracker:
+
+1. **Before starting a task**: Mark it as "in_progress" in Active Tasks
+2. **After completing a task**: Move it to "Completed and Verified" with evidence (but mark as "pending verification")
+3. **If you discover the plan has errors**:
+   - Do NOT silently change direction
+   - Add entry to "Plan Evolution Log" with justification
+   - Explain how the change still serves the Ultimate Goal
+4. **If you need to defer a task**:
+   - Move it to "Explicitly Deferred" section
+   - Provide strong justification
+   - Explain impact on Acceptance Criteria
+5. **If you discover new issues**: Add to "Open Issues" table
+
+---
+
 Note: You MUST NOT try to exit \`ralph-loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-with-codex\`
 
 After completing the work, please:
 0. If you have access to the \`code-simplifier\` agent, use it to review and optimize the code you just wrote
-1. Commit your changes with a descriptive commit message
-2. Push the commit to the remote repository
-3. Write your work summary into @$SUMMARY_PATH
+1. Finalize @$GOAL_TRACKER_FILE (this is Round 0, so you are initializing it - see "Goal Tracker Setup" above)
+2. Commit your changes with a descriptive commit message
+3. Push the commit to the remote repository
+4. Write your work summary into @$SUMMARY_PATH
 EOF
 
 # ========================================

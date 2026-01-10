@@ -21,15 +21,35 @@ This command starts an iterative development loop where:
 4. If Codex finds issues, you receive feedback and continue
 5. If Codex outputs "COMPLETE", the loop ends
 
+## Goal Tracker System
+
+This loop uses a **Goal Tracker** to prevent goal drift across iterations:
+
+### Structure
+- **IMMUTABLE SECTION**: Ultimate Goal and Acceptance Criteria (set in Round 0, never changed)
+- **MUTABLE SECTION**: Active Tasks, Completed Items, Deferred Items, Plan Evolution Log
+
+### Key Features
+1. **Acceptance Criteria**: Each task maps to a specific AC - nothing can be "forgotten"
+2. **Plan Evolution Log**: If you discover the plan needs changes, document the change with justification
+3. **Explicit Deferrals**: Deferred tasks require strong justification and impact analysis
+4. **Full Alignment Checks**: Every 5 rounds, Codex conducts a comprehensive goal alignment audit
+
+### How to Use
+1. **Round 0**: Initialize the Goal Tracker with Ultimate Goal and Acceptance Criteria
+2. **Each Round**: Update task status, log plan changes, note discovered issues
+3. **Before Exit**: Ensure goal-tracker.md reflects current state accurately
+
 ## Important Rules
 
 1. **Write summaries**: Always write your work summary to the specified file before exiting
-2. **Be thorough**: Include details about what was implemented, files changed, and tests added
-3. **No cheating**: Do not try to exit the loop by editing state files or running cancel commands
-4. **Trust the process**: Codex's feedback helps improve the implementation
+2. **Maintain Goal Tracker**: Keep goal-tracker.md up-to-date with your progress
+3. **Be thorough**: Include details about what was implemented, files changed, and tests added
+4. **No cheating**: Do not try to exit the loop by editing state files or running cancel commands
+5. **Trust the process**: Codex's feedback helps improve the implementation
 
 ## Stopping the Loop
 
 - Reach the maximum iteration count
-- Codex confirms completion with "COMPLETE"
+- Codex confirms completion with "COMPLETE" (all ACs met or validly deferred)
 - User runs `/gaac:cancel-loop-with-codex`
