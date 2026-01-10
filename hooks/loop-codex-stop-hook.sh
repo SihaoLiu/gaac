@@ -423,6 +423,13 @@ if [[ "$FULL_ALIGNMENT_CHECK" == "true" ]]; then
 
 This is a **mandatory checkpoint** (every 5 rounds). You must conduct a comprehensive goal alignment audit.
 
+## Original Implementation Plan
+
+**IMPORTANT**: The original plan that Claude is implementing is located at:
+@$PLAN_FILE
+
+You MUST read this plan file first to understand the full scope of work before conducting your review.
+
 ---
 ## Claude's Work Summary
 <!-- CLAUDE's WORK SUMMARY START -->
@@ -480,7 +487,17 @@ EOF
 else
     # Regular review prompt with goal alignment section
     cat > "$REVIEW_PROMPT_FILE" << EOF
-Based on @$PROMPT_FILE, Claude claims to have completed the work. Please conduct a thorough critical review to verify this.
+# Code Review - Round $CURRENT_ROUND
+
+## Original Implementation Plan
+
+**IMPORTANT**: The original plan that Claude is implementing is located at:
+@$PLAN_FILE
+
+You MUST read this plan file first to understand the full scope of work before conducting your review.
+This plan contains the complete requirements and implementation details that Claude should be following.
+
+Based on the original plan and @$PROMPT_FILE, Claude claims to have completed the work. Please conduct a thorough critical review to verify this.
 
 ---
 Below is Claude's summary of the work completed:
@@ -684,6 +701,15 @@ IS_POST_ALIGNMENT=$([[ $((CURRENT_ROUND % 5)) -eq 4 ]] && echo "true" || echo "f
 
 cat > "$NEXT_PROMPT_FILE" << EOF
 Your work is not finished. Read and execute the below with ultrathink.
+
+## Original Implementation Plan
+
+**IMPORTANT**: Before proceeding, review the original plan you are implementing:
+@$PLAN_FILE
+
+This plan contains the full scope of work and requirements. Ensure your work aligns with this plan.
+
+---
 
 For all tasks that need to be completed, please create Todos to track each item in order of importance.
 You are strictly prohibited from only addressing the most important issues - you MUST create Todos for ALL discovered issues and attempt to resolve each one.
