@@ -2,50 +2,56 @@
 #
 # PreToolUse Hook: Validate Read access for loop-with-codex-review files
 #
-# This hook intercepts Read tool calls and prevents Claude from reading
-# wrong round's prompt or summary files, which can cause confusion.
-#
-# Problem 1: Claude sometimes tries to read old round files (e.g., round-2-prompt.md
-# when current round is 4), which may contain outdated information.
-#
-# Problem 2: Claude sometimes tries to read round files from wrong locations
-# (e.g., .claude/round-9-summary.md instead of .gaac-loop.local/)
-#
-# Problem 3: Claude sometimes tries to read from old session directories
-# (e.g., .gaac-loop.local/2026-01-08_10-00-00/ when active is 2026-01-09_12-00-00/)
-#
-# Solution: Block reading wrong files with a helpful message that suggests
-# using `cat` command if really needed.
+# Blocks Claude from reading:
+# - Wrong round's prompt/summary files (outdated information)
+# - Round files from wrong locations (not in .gaac-loop.local/)
+# - Round files from old session directories
+# - Todos files (should use native TodoWrite instead)
 #
 
 set -euo pipefail
 
+# Load shared functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/loop-common.sh"
+
 # ========================================
-# Read Hook Input
+# Parse Hook Input
 # ========================================
 
 HOOK_INPUT=$(cat)
-
-# Parse the JSON input using jq
 TOOL_NAME=$(echo "$HOOK_INPUT" | jq -r '.tool_name // ""')
 
-# Only process Read tool calls
 if [[ "$TOOL_NAME" != "Read" ]]; then
     exit 0
 fi
 
 FILE_PATH=$(echo "$HOOK_INPUT" | jq -r '.tool_input.file_path // ""')
+FILE_PATH_LOWER=$(to_lower "$FILE_PATH")
 
 # ========================================
-# Check if this is a loop-related file
+# Block Todos Files
 # ========================================
 
-# Check if it's a round file (regardless of path)
+if is_round_file_type "$FILE_PATH_LOWER" "todos"; then
+    todos_blocked_message "Read" >&2
+    exit 2
+fi
+
+# ========================================
+# Check for Round Files (summary/prompt)
+# ========================================
+
 IS_ROUND_FILE=false
 CLAUDE_FILENAME=""
-if echo "$FILE_PATH" | grep -qE 'round-[0-9]+-(summary|prompt)\.md$'; then
+
+if is_round_file_type "$FILE_PATH_LOWER" "summary" || is_round_file_type "$FILE_PATH_LOWER" "prompt"; then
     IS_ROUND_FILE=true
     CLAUDE_FILENAME=$(basename "$FILE_PATH")
+fi
+
+if [[ "$IS_ROUND_FILE" == "false" ]]; then
+    exit 0
 fi
 
 # Check if path contains .gaac-loop.local
@@ -54,93 +60,54 @@ if echo "$FILE_PATH" | grep -q '\.gaac-loop\.local/'; then
     IN_GAAC_LOOP_DIR=true
 fi
 
-# If not a round file, allow normally
-if [[ "$IS_ROUND_FILE" == "false" ]]; then
-    exit 0
-fi
-
 # ========================================
-# Find Active Loop Directory
+# Find Active Loop and Current Round
 # ========================================
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 LOOP_BASE_DIR="$PROJECT_ROOT/.gaac-loop.local"
+ACTIVE_LOOP_DIR=$(find_active_loop "$LOOP_BASE_DIR")
 
-# Find the most recent active loop directory
-find_active_loop() {
-    if [[ ! -d "$LOOP_BASE_DIR" ]]; then
-        echo ""
-        return
-    fi
-
-    # Find directories with state.md, sorted by name (timestamp) descending
-    for dir in $(ls -1dr "$LOOP_BASE_DIR"/*/ 2>/dev/null); do
-        if [[ -f "$dir/state.md" ]]; then
-            echo "${dir%/}"
-            return
-        fi
-    done
-    echo ""
-}
-
-ACTIVE_LOOP_DIR=$(find_active_loop)
-
-# If no active loop, allow the read
 if [[ -z "$ACTIVE_LOOP_DIR" ]]; then
     exit 0
 fi
 
-STATE_FILE="$ACTIVE_LOOP_DIR/state.md"
+CURRENT_ROUND=$(get_current_round "$ACTIVE_LOOP_DIR/state.md")
 
 # ========================================
-# Extract Round Number from state.md
+# Extract Round Number and File Type
 # ========================================
 
-FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE" 2>/dev/null || echo "")
-CURRENT_ROUND=$(echo "$FRONTMATTER" | grep '^current_round:' | sed 's/current_round: *//' | tr -d ' ')
-CURRENT_ROUND="${CURRENT_ROUND:-0}"
-
-# ========================================
-# Extract Round Number from File Path
-# ========================================
-
-if [[ "$CLAUDE_FILENAME" =~ ^round-([0-9]+)-(summary|prompt)\.md$ ]]; then
-    CLAUDE_ROUND="${BASH_REMATCH[1]}"
-    FILE_TYPE="${BASH_REMATCH[2]}"
-else
-    # Can't extract round, allow normally
+CLAUDE_ROUND=$(extract_round_number "$CLAUDE_FILENAME")
+if [[ -z "$CLAUDE_ROUND" ]]; then
     exit 0
 fi
 
+# Determine file type from filename
+FILE_TYPE=""
+if is_round_file_type "$FILE_PATH_LOWER" "summary"; then
+    FILE_TYPE="summary"
+elif is_round_file_type "$FILE_PATH_LOWER" "prompt"; then
+    FILE_TYPE="prompt"
+fi
+
 # ========================================
-# Handle Files Outside .gaac-loop.local
+# Validate File Location
 # ========================================
 
 if [[ "$IN_GAAC_LOOP_DIR" == "false" ]]; then
-    # Claude is trying to read a round file from wrong location
     CORRECT_PATH="$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-${FILE_TYPE}.md"
+    cat >&2 << EOF
+# Wrong File Location
 
-    REASON="# Wrong File Location
-
-You are trying to read \`$FILE_PATH\`, but loop files are located in \`$ACTIVE_LOOP_DIR/\`.
+You are trying to read \`$FILE_PATH\`, but loop files are in \`$ACTIVE_LOOP_DIR/\`.
 
 **Current round files**:
 - Prompt: \`$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-prompt.md\`
 - Summary: \`$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-summary.md\`
 
-The file you're trying to read is in the wrong location and may contain stale or incorrect data.
-
-If you need the current round's ${FILE_TYPE}, read:
-\`\`\`
-$CORRECT_PATH
-\`\`\`
-
-If you absolutely need to read this file for reference, you can use the \`cat\` command in Bash:
-\`\`\`bash
-cat $FILE_PATH
-\`\`\`"
-
-    echo "$REASON" >&2
+If you need this file, use: \`cat $FILE_PATH\`
+EOF
     exit 2
 fi
 
@@ -149,8 +116,8 @@ fi
 # ========================================
 
 if [[ "$CLAUDE_ROUND" != "$CURRENT_ROUND" ]]; then
-    # Wrong round number
-    REASON="# Wrong Round File
+    cat >&2 << EOF
+# Wrong Round File
 
 You are trying to read \`round-${CLAUDE_ROUND}-${FILE_TYPE}.md\`, but the current round is **${CURRENT_ROUND}**.
 
@@ -158,56 +125,27 @@ You are trying to read \`round-${CLAUDE_ROUND}-${FILE_TYPE}.md\`, but the curren
 - Prompt: \`$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-prompt.md\`
 - Summary: \`$ACTIVE_LOOP_DIR/round-${CURRENT_ROUND}-summary.md\`
 
-Information in other rounds' files may be **outdated or irrelevant** to your current task.
-
-If you absolutely need to read old round files for reference, you can use the \`cat\` command in Bash:
-\`\`\`bash
-cat $FILE_PATH
-\`\`\`
-
-However, please focus on the current round's requirements and avoid confusion from old context."
-
-    echo "$REASON" >&2
+If you need this file, use: \`cat $FILE_PATH\`
+EOF
     exit 2
 fi
 
 # ========================================
-# Validate Directory Path (timestamp directory)
+# Validate Directory Path
 # ========================================
 
-# Build the correct path for comparison
 CORRECT_PATH="$ACTIVE_LOOP_DIR/$CLAUDE_FILENAME"
 
-# Check if the path matches the active loop directory
 if [[ "$FILE_PATH" != "$CORRECT_PATH" ]]; then
-    # Wrong directory (e.g., old session timestamp or home directory hallucination)
-    REASON="# Wrong Directory Path
+    cat >&2 << EOF
+# Wrong Directory Path
 
-You are trying to read:
-\`\`\`
-$FILE_PATH
-\`\`\`
+You are trying to read: \`$FILE_PATH\`
+Correct path: \`$CORRECT_PATH\`
 
-But the active loop directory is:
-\`\`\`
-$ACTIVE_LOOP_DIR/
-\`\`\`
-
-**Correct path**:
-\`\`\`
-$CORRECT_PATH
-\`\`\`
-
-You may be reading from an old session. Please read from the correct path above.
-
-If you absolutely need to read this file for reference, you can use the \`cat\` command in Bash:
-\`\`\`bash
-cat $FILE_PATH
-\`\`\`"
-
-    echo "$REASON" >&2
+If you need this file, use: \`cat $FILE_PATH\`
+EOF
     exit 2
 fi
 
-# Path is correct, allow the read
 exit 0
