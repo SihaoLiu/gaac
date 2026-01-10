@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Stop Hook for ralph-loop-with-codex-review
+# Stop Hook for loop-with-codex-review
 #
 # Intercepts Claude's exit attempts and uses Codex to review work.
 # If Codex doesn't confirm completion, blocks exit and feeds review back.
@@ -362,7 +362,7 @@ NEXT_ROUND=$((CURRENT_ROUND + 1))
 
 # Skip max iteration check if in infinite mode
 if [[ "$MAX_ITERATIONS" != "inf" ]] && [[ $NEXT_ROUND -gt $MAX_ITERATIONS ]]; then
-    echo "ralph-loop-with-codex-review did not complete, but reached max iterations ($MAX_ITERATIONS). Exiting." >&2
+    echo "loop-with-codex-review did not complete, but reached max iterations ($MAX_ITERATIONS). Exiting." >&2
     rm -f "$STATE_FILE"
     exit 0
 fi
@@ -751,7 +751,7 @@ cat >> "$NEXT_PROMPT_FILE" << EOF
 
 ---
 
-Note: You MUST NOT try to exit the \`ralph-loop-with-codex-review\` loop by lying, editing the loop state file, or executing \`cancel-loop-with-codex\`.
+Note: You MUST NOT try to exit the \`loop-with-codex-review\` loop by lying, editing the loop state file, or executing \`cancel-loop-codex-review\`.
 
 After completing the work, please:
 0. If you have access to the \`code-simplifier\` agent, use it to review and optimize the code you just wrote

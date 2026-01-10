@@ -1,5 +1,5 @@
 {
-  "description": "GAAC Plugin Hooks - Ralph-Wiggum style review iteration for /work-on-issue and loop-with-codex-review",
+  "description": "GAAC Plugin Hooks - Validation hooks and Stop hooks for /work-on-issue and /loop-with-codex-review",
   "hooks": {
     "PreToolUse": [
       {

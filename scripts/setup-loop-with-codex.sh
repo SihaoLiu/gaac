@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Setup script for ralph-loop-with-codex-review
+# Setup script for loop-with-codex-review
 #
 # Creates state files for the loop that uses Codex to review Claude's work.
 #
@@ -34,10 +34,10 @@ CODEX_TIMEOUT="$DEFAULT_CODEX_TIMEOUT"
 
 show_help() {
     cat << 'HELP_EOF'
-ralph-loop-with-codex-review - Iterative development with Codex review
+loop-with-codex-review - Iterative development with Codex review
 
 USAGE:
-  /gaac:ralph-loop-with-codex-review <path/to/plan.md> [OPTIONS]
+  /gaac:loop-with-codex-review <path/to/plan.md> [OPTIONS]
 
 ARGUMENTS:
   <path/to/plan.md>    Path to a markdown file containing the implementation plan
@@ -54,8 +54,8 @@ OPTIONS:
   -h, --help           Show this help message
 
 DESCRIPTION:
-  Starts a Ralph Loop with Codex review in your CURRENT session. Unlike
-  the standard ralph-loop, this variant:
+  Starts an iterative loop with Codex review in your CURRENT session.
+  This command:
 
   1. Takes a markdown plan file as input (not a prompt string)
   2. Uses Codex to independently review Claude's work each iteration
@@ -211,9 +211,9 @@ fi
 if [[ -z "$PLAN_FILE" ]]; then
     echo "Error: No plan file provided" >&2
     echo "" >&2
-    echo "Usage: /gaac:ralph-loop-with-codex-review <path/to/plan.md> [OPTIONS]" >&2
+    echo "Usage: /gaac:loop-with-codex-review <path/to/plan.md> [OPTIONS]" >&2
     echo "" >&2
-    echo "For help: /gaac:ralph-loop-with-codex-review --help" >&2
+    echo "For help: /gaac:loop-with-codex-review --help" >&2
     exit 1
 fi
 
@@ -241,7 +241,7 @@ fi
 
 # Check codex is available
 if ! command -v codex &>/dev/null; then
-    echo "Error: ralph-loop-with-codex-review requires codex to run" >&2
+    echo "Error: loop-with-codex-review requires codex to run" >&2
     echo "" >&2
     echo "Please install Codex CLI: https://openai.com/codex" >&2
     exit 1
@@ -429,7 +429,7 @@ Throughout your work, you MUST maintain the Goal Tracker:
 
 ---
 
-Note: You MUST NOT try to exit \`ralph-loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-with-codex\`
+Note: You MUST NOT try to exit \`loop-with-codex-review\` loop by lying or edit loop state file or try to execute \`cancel-loop-codex-review\`
 
 After completing the work, please:
 0. If you have access to the \`code-simplifier\` agent, use it to review and optimize the code you just wrote
@@ -451,7 +451,7 @@ else
 fi
 
 cat << EOF
-=== ralph-loop-with-codex-review activated ===
+=== loop-with-codex-review activated ===
 
 Plan File: $PLAN_FILE ($LINE_COUNT lines)
 Max Iterations: $MAX_DISPLAY
@@ -465,7 +465,7 @@ The loop is now active. When you try to exit:
 2. If issues are found, you'll receive feedback and continue
 3. If Codex outputs "COMPLETE", the loop ends
 
-To cancel: /gaac:cancel-loop-with-codex
+To cancel: /gaac:cancel-loop-codex-review
 
 ---
 

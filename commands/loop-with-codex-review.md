@@ -5,7 +5,7 @@ allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-loop-with-codex.sh:*)"
 hide-from-slash-command-tool: "true"
 ---
 
-# Ralph Loop with Codex Review
+# Loop with Codex Review
 
 Execute the setup script to initialize the loop:
 
@@ -52,4 +52,4 @@ This loop uses a **Goal Tracker** to prevent goal drift across iterations:
 
 - Reach the maximum iteration count
 - Codex confirms completion with "COMPLETE" (all ACs met or validly deferred)
-- User runs `/gaac:cancel-loop-with-codex`
+- User runs `/gaac:cancel-loop-codex-review`

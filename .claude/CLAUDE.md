@@ -1,5 +1,5 @@
 # GAAC Introduction
-This is a Claude Code plugin, that leverage Github-as-a-Context methodology. Also use ralph-loop to iteratively implement and work on issues.
+This is a Claude Code plugin that leverages the Github-as-a-Context methodology. Use `/loop-with-codex-review` for iterative development with Codex review, and `/work-on-issue` for end-to-end issue resolution.
 
 # GAAC Project Rules
 - Everything about this project, including but not limited to implementations, comments, tests and documentations should be in English. No Emoji or CJK char is allowed.
