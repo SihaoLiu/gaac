@@ -587,10 +587,12 @@ The project's \`.gaac-loop.local/$(basename "$LOOP_DIR")/\` directory contains t
 
 ## Part 5: Output Requirements
 
-- If issues found OR any AC is NOT MET without valid deferral, write your findings to @$REVIEW_RESULT_FILE
+- If issues found OR any AC is NOT MET (including deferred ACs), write your findings to @$REVIEW_RESULT_FILE
 - Include specific action items for Claude to address
 - **If development is stagnating** (see Part 4), write "STOP" as the last line
-- If ALL ACs are MET or validly DEFERRED, and implementation is correct, write "COMPLETE" as the last line
+- **CRITICAL**: Only write "COMPLETE" as the last line if ALL ACs from the original plan are FULLY MET with no deferrals
+  - DEFERRED items are considered INCOMPLETE - do NOT output COMPLETE if any AC is deferred
+  - The ONLY condition for COMPLETE is: all original plan tasks are done, all ACs are met, no deferrals allowed
 EOF
 
 else
@@ -648,7 +650,10 @@ ACs: X/Y addressed | Forgotten items: N | Unjustified deferrals: N
 
 - In short, your review comments can include: problems/findings/blockers; claims that don't match reality; implementation plans for deferred work (to be implemented now); implementation plans for unfinished work; goal alignment issues.
 - If after your investigation the actual situation does not match what Claude claims to have completed, or there is pending work to be done, output your review comments to @$REVIEW_RESULT_FILE.
-- If after your investigation the actual situation matches what Claude claims, and there is no deferred or unfinished work, output your review result to the same file, and ensure the last line contains only the single word COMPLETE.
+- **CRITICAL**: Only output "COMPLETE" as the last line if ALL tasks from the original plan are FULLY completed with no deferrals
+  - DEFERRED items are considered INCOMPLETE - do NOT output COMPLETE if any task is deferred
+  - UNFINISHED items are considered INCOMPLETE - do NOT output COMPLETE if any task is pending
+  - The ONLY condition for COMPLETE is: all original plan tasks are done, all ACs are met, no deferrals or pending work allowed
 - The word COMPLETE on the last line will stop Claude.
 EOF
 fi
