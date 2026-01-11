@@ -9,6 +9,8 @@
 #
 
 # Find the most recent active loop directory
+# Only checks the newest directory - older directories are ignored even if they have state.md
+# This prevents "zombie" loops from being revived after abnormal exits
 # Outputs the directory path to stdout, or empty string if none found
 find_active_loop() {
     local loop_base_dir="$1"
@@ -18,14 +20,16 @@ find_active_loop() {
         return
     fi
 
-    # Find directories with state.md, sorted by name (timestamp) descending
-    for dir in $(ls -1dr "$loop_base_dir"/*/ 2>/dev/null); do
-        if [[ -f "$dir/state.md" ]]; then
-            echo "${dir%/}"
-            return
-        fi
-    done
-    echo ""
+    # Get the newest directory (by timestamp name, descending)
+    local newest_dir
+    newest_dir=$(ls -1d "$loop_base_dir"/*/ 2>/dev/null | sort -r | head -1)
+
+    if [[ -n "$newest_dir" ]] && [[ -f "${newest_dir}state.md" ]]; then
+        # Remove trailing slash to avoid double slashes in paths
+        echo "${newest_dir%/}"
+    else
+        echo ""
+    fi
 }
 
 # Extract current round number from state.md

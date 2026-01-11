@@ -43,25 +43,11 @@ HOOK_INPUT=$(cat)
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 LOOP_BASE_DIR="$PROJECT_ROOT/.gaac-loop.local"
 
-# Find the most recent active loop directory
-find_active_loop() {
-    if [[ ! -d "$LOOP_BASE_DIR" ]]; then
-        echo ""
-        return
-    fi
+# Source shared loop functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/loop-common.sh"
 
-    # Find directories with state.md, sorted by name (timestamp) descending
-    for dir in $(ls -1dr "$LOOP_BASE_DIR"/*/ 2>/dev/null); do
-        if [[ -f "$dir/state.md" ]]; then
-            # Remove trailing slash to avoid double slashes in paths
-            echo "${dir%/}"
-            return
-        fi
-    done
-    echo ""
-}
-
-LOOP_DIR=$(find_active_loop)
+LOOP_DIR=$(find_active_loop "$LOOP_BASE_DIR")
 
 # If no active loop, allow exit
 if [[ -z "$LOOP_DIR" ]]; then
@@ -76,7 +62,6 @@ STATE_FILE="$LOOP_DIR/state.md"
 # Before running expensive Codex review, check if Claude still has
 # incomplete todos. If yes, block immediately and tell Claude to finish.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TODO_CHECKER="$SCRIPT_DIR/check-todos-from-transcript.py"
 
 if [[ -f "$TODO_CHECKER" ]]; then
@@ -371,7 +356,6 @@ fi
 # Get Docs Path from Config
 # ========================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONFIG_HELPER="$PLUGIN_ROOT/scripts/gaac-config.sh"
 
