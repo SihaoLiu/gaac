@@ -73,6 +73,36 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 
+# Portable sed in-place edit (works on both macOS and Linux)
+# Usage: sed_inplace 's/pattern/replacement/' file
+sed_inplace() {
+    local pattern="$1"
+    local file="$2"
+    local tmpfile
+    tmpfile=$(mktemp)
+    sed "$pattern" "$file" > "$tmpfile" && mv "$tmpfile" "$file"
+}
+
+# Run a configured command
+# Usage: run_configured_command <key> <required|optional>
+run_configured_command() {
+    local key="$1"
+    local required="${2:-required}"
+    local cmd
+    cmd=$(read_value "$key")
+
+    if [ -z "$cmd" ] || [[ "$cmd" == "<"* ]]; then
+        if [ "$required" = "optional" ]; then
+            echo "SKIP: $key not configured (optional)"
+            exit 0
+        fi
+        echo "ERROR: $key not configured" >&2
+        exit 1
+    fi
+    echo "Running: $cmd"
+    eval "$cmd"
+}
+
 # Read a value from the config file
 # Supports both "gaac.key: value" format and "**Key**: value" natural language format
 read_value() {
@@ -336,7 +366,7 @@ case "$COMMAND" in
         new_value="${current}[${TAG}]"
         # Update in file
         if grep -qE "^[[:space:]]*${TAG_KEY}:" "$CONFIG_FILE"; then
-            sed -i "s|^\([[:space:]]*${TAG_KEY}:\).*|\1 ${new_value}|" "$CONFIG_FILE"
+            sed_inplace "s|^\([[:space:]]*${TAG_KEY}:\).*|\1 ${new_value}|" "$CONFIG_FILE"
             echo "Appended [$TAG] to $TAG_KEY"
         else
             echo "$TAG_KEY: $new_value" >> "$CONFIG_FILE"
@@ -365,7 +395,7 @@ case "$COMMAND" in
         fi
         # Update in file
         if grep -qE "^[[:space:]]*gaac\.file_mappings:" "$CONFIG_FILE"; then
-            sed -i "s|^\([[:space:]]*gaac\.file_mappings:\).*|\1 ${new_value}|" "$CONFIG_FILE"
+            sed_inplace "s|^\([[:space:]]*gaac\.file_mappings:\).*|\1 ${new_value}|" "$CONFIG_FILE"
             echo "Appended mapping: $PATTERN:$TAG"
         else
             echo "gaac.file_mappings: $new_value" >> "$CONFIG_FILE"
@@ -405,51 +435,19 @@ case "$COMMAND" in
         fi
         ;;
     run-quick-test)
-        CMD=$(read_value "gaac.quick_test")
-        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
-            echo "ERROR: gaac.quick_test not configured" >&2
-            exit 1
-        fi
-        echo "Running: $CMD"
-        eval "$CMD"
+        run_configured_command "gaac.quick_test"
         ;;
     run-quick-build)
-        CMD=$(read_value "gaac.quick_build")
-        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
-            echo "ERROR: gaac.quick_build not configured" >&2
-            exit 1
-        fi
-        echo "Running: $CMD"
-        eval "$CMD"
+        run_configured_command "gaac.quick_build"
         ;;
     run-full-test)
-        CMD=$(read_value "gaac.full_test")
-        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
-            echo "ERROR: gaac.full_test not configured" >&2
-            exit 1
-        fi
-        echo "Running: $CMD"
-        eval "$CMD"
+        run_configured_command "gaac.full_test"
         ;;
     run-lint)
-        CMD=$(read_value "gaac.lint")
-        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
-            # Lint is optional, exit 0 with message
-            echo "SKIP: gaac.lint not configured (optional)"
-            exit 0
-        fi
-        echo "Running: $CMD"
-        eval "$CMD"
+        run_configured_command "gaac.lint" "optional"
         ;;
     run-env-setup)
-        CMD=$(read_value "gaac.env_setup")
-        if [ -z "$CMD" ] || [[ "$CMD" == "<"* ]]; then
-            # Env setup is optional, exit 0 with message
-            echo "SKIP: gaac.env_setup not configured (optional)"
-            exit 0
-        fi
-        echo "Running: $CMD"
-        eval "$CMD"
+        run_configured_command "gaac.env_setup" "optional"
         ;;
     *)
         echo "Unknown command: $COMMAND" >&2

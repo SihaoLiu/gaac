@@ -1,6 +1,7 @@
-#!/bin/zsh
+#!/bin/bash
 # gaac.sh - GAAC (Git-Assisted AI Coding) shell utilities
 # Part of rc.d configuration
+# Compatible with both bash and zsh
 
 # Monitor the latest Codex run log from .gaac-loop.local
 # Automatically switches to newer logs when they appear
@@ -22,10 +23,16 @@ _gaac_monitor_codex() {
     # Function to find the latest session directory
     _find_latest_session() {
         local latest_session=""
-        for session_dir in "$loop_dir"/*(/N); do
-            local session_name="${session_dir:t}"
+        # Iterate over directories (bash/zsh compatible)
+        for session_dir in "$loop_dir"/*; do
+            # Skip if glob didn't match anything
+            [[ ! -e "$session_dir" ]] && continue
+            # Only process directories
+            [[ ! -d "$session_dir" ]] && continue
+
+            local session_name=$(basename "$session_dir")
             if [[ "$session_name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}$ ]]; then
-                if [[ -z "$latest_session" ]] || [[ "$session_name" > "${latest_session:t}" ]]; then
+                if [[ -z "$latest_session" ]] || [[ "$session_name" > "$(basename "$latest_session")" ]]; then
                     latest_session="$session_dir"
                 fi
             fi
@@ -48,8 +55,13 @@ _gaac_monitor_codex() {
         local project_cache_dir="$cache_base/$sanitized_project"
 
         # First, find valid session timestamps from local .gaac-loop.local
-        for session_dir in "$loop_dir"/*(/N); do
-            local session_name="${session_dir:t}"
+        for session_dir in "$loop_dir"/*; do
+            # Skip if glob didn't match anything
+            [[ ! -e "$session_dir" ]] && continue
+            # Only process directories
+            [[ ! -d "$session_dir" ]] && continue
+
+            local session_name=$(basename "$session_dir")
             if [[ ! "$session_name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}$ ]]; then
                 continue
             fi
@@ -60,10 +72,13 @@ _gaac_monitor_codex() {
                 continue
             fi
 
-            for log_file in "$cache_dir"/round-*-codex-run.log(N); do
+            for log_file in "$cache_dir"/round-*-codex-run.log; do
+                # Skip if glob didn't match anything
+                [[ ! -e "$log_file" ]] && continue
+
                 if [[ -f "$log_file" ]]; then
-                    local basename="${log_file:t}"
-                    local round_num="${basename#round-}"
+                    local log_basename=$(basename "$log_file")
+                    local round_num="${log_basename#round-}"
                     round_num="${round_num%%-codex-run.log}"
 
                     if [[ -z "$latest" ]] || \
@@ -208,36 +223,36 @@ _gaac_monitor_codex() {
         local goal_tracker_file="$session_dir/goal-tracker.md"
         local term_width=$(tput cols)
 
-        # Parse state.md into array (zsh array splitting on |)
+        # Parse state.md into array (bash/zsh compatible)
         local -a state_parts
-        state_parts=("${(@s:|:)$(_parse_state_md "$state_file")}")
-        local current_round="${state_parts[1]}"
-        local max_iterations="${state_parts[2]}"
-        local codex_model="${state_parts[3]}"
-        local codex_effort="${state_parts[4]}"
-        local started_at="${state_parts[5]}"
-        local plan_file="${state_parts[6]}"
+        IFS='|' read -ra state_parts <<< "$(_parse_state_md "$state_file")"
+        local current_round="${state_parts[0]}"
+        local max_iterations="${state_parts[1]}"
+        local codex_model="${state_parts[2]}"
+        local codex_effort="${state_parts[3]}"
+        local started_at="${state_parts[4]}"
+        local plan_file="${state_parts[5]}"
 
         # Parse goal-tracker.md into array
         local -a goal_parts
-        goal_parts=("${(@s:|:)$(_parse_goal_tracker "$goal_tracker_file")}")
-        local total_acs="${goal_parts[1]}"
-        local completed_acs="${goal_parts[2]}"
-        local active_tasks="${goal_parts[3]}"
-        local completed_tasks="${goal_parts[4]}"
-        local deferred_tasks="${goal_parts[5]}"
-        local open_issues="${goal_parts[6]}"
-        local goal_summary="${goal_parts[7]}"
+        IFS='|' read -ra goal_parts <<< "$(_parse_goal_tracker "$goal_tracker_file")"
+        local total_acs="${goal_parts[0]}"
+        local completed_acs="${goal_parts[1]}"
+        local active_tasks="${goal_parts[2]}"
+        local completed_tasks="${goal_parts[3]}"
+        local deferred_tasks="${goal_parts[4]}"
+        local open_issues="${goal_parts[5]}"
+        local goal_summary="${goal_parts[6]}"
 
         # Parse git status into array
         local -a git_parts
-        git_parts=("${(@s:|:)$(_parse_git_status)}")
-        local git_modified="${git_parts[1]}"
-        local git_added="${git_parts[2]}"
-        local git_deleted="${git_parts[3]}"
-        local git_untracked="${git_parts[4]}"
-        local git_insertions="${git_parts[5]}"
-        local git_deletions="${git_parts[6]}"
+        IFS='|' read -ra git_parts <<< "$(_parse_git_status)"
+        local git_modified="${git_parts[0]}"
+        local git_added="${git_parts[1]}"
+        local git_deleted="${git_parts[2]}"
+        local git_untracked="${git_parts[3]}"
+        local git_insertions="${git_parts[4]}"
+        local git_deletions="${git_parts[5]}"
 
         # Format started_at for display
         local start_display="$started_at"
@@ -250,8 +265,15 @@ _gaac_monitor_codex() {
         local max_display_len=$((term_width - 12))
         local plan_display="$plan_file"
         local goal_display="$goal_summary"
-        [[ ${#plan_file} -gt $max_display_len ]] && plan_display="...${plan_file: -$((max_display_len - 3))}"
-        [[ ${#goal_summary} -gt $max_display_len ]] && goal_display="${goal_summary:0:$((max_display_len - 3))}..."
+        # Bash-compatible string slicing
+        if [[ ${#plan_file} -gt $max_display_len ]]; then
+            local suffix_len=$((max_display_len - 3))
+            plan_display="...${plan_file: -$suffix_len}"
+        fi
+        if [[ ${#goal_summary} -gt $max_display_len ]]; then
+            local prefix_len=$((max_display_len - 3))
+            goal_display="${goal_summary:0:$prefix_len}..."
+        fi
 
         # Save cursor position and move to top
         tput sc
@@ -269,8 +291,9 @@ _gaac_monitor_codex() {
 
         # Draw header and session info
         tput cup 0 0
+        local session_basename=$(basename "$session_dir")
         printf "${bg}${bold}%-${term_width}s${reset}\n" " GAAC Loop Monitor"
-        printf "${cyan}Session:${reset}  ${session_dir:t}    ${cyan}Started:${reset} ${start_display}\n"
+        printf "${cyan}Session:${reset}  ${session_basename}    ${cyan}Started:${reset} ${start_display}\n"
         printf "${green}Round:${reset}    ${bold}${current_round}${reset} / ${max_iterations}    ${yellow}Model:${reset} ${codex_model} (${codex_effort})\n"
 
         # Goal tracker progress line (color based on completion status)
@@ -331,15 +354,15 @@ _gaac_monitor_codex() {
     local monitor_running=true
     local cleanup_done=false
 
-    # Cleanup function - called by TRAPINT
+    # Cleanup function - called by trap
     _cleanup() {
         # Prevent multiple cleanup calls
         [[ "$cleanup_done" == "true" ]] && return
         cleanup_done=true
         monitor_running=false
 
-        # Remove trap functions immediately to prevent re-triggering
-        unfunction TRAPINT TRAPTERM 2>/dev/null
+        # Reset traps to prevent re-triggering
+        trap - INT TERM
 
         # Kill background processes
         if [[ -n "$tail_pid" ]] && kill -0 $tail_pid 2>/dev/null; then
@@ -352,16 +375,8 @@ _gaac_monitor_codex() {
         echo "Stopped monitoring."
     }
 
-    # Use zsh TRAPINT function for reliable signal handling
-    # Return 128+signal per Unix convention (130 for SIGINT, 143 for SIGTERM)
-    TRAPINT() {
-        _cleanup
-        return $(( 128 + $1 ))
-    }
-    TRAPTERM() {
-        _cleanup
-        return $(( 128 + $1 ))
-    }
+    # Set up signal handlers (bash/zsh compatible)
+    trap '_cleanup' INT TERM
 
     # Find initial file
     current_file=$(_find_latest_codex_log)
@@ -374,11 +389,16 @@ _gaac_monitor_codex() {
             current_file=$(_find_latest_codex_log)
             current_session_dir=$(_find_latest_session)
         done
-        [[ "$monitor_running" != "true" ]] && { unfunction TRAPINT TRAPTERM 2>/dev/null; return 0; }
+        [[ "$monitor_running" != "true" ]] && { trap - INT TERM; return 0; }
     fi
 
     # Setup terminal
     _setup_terminal
+
+    # Get file size (cross-platform: Linux uses -c%s, macOS uses -f%z)
+    _get_file_size() {
+        stat -c%s "$1" 2>/dev/null || stat -f%z "$1" 2>/dev/null || echo 0
+    }
 
     # Track last read position for incremental reading
     local last_size=0
@@ -395,7 +415,7 @@ _gaac_monitor_codex() {
         tput cup $status_bar_height 0
 
         # Get initial file size
-        last_size=$(stat -c%s "$current_file" 2>/dev/null || stat -f%z "$current_file" 2>/dev/null || echo 0)
+        last_size=$(_get_file_size "$current_file")
 
         # Show existing content (last 50 lines)
         [[ "$monitor_running" != "true" ]] && break
@@ -412,7 +432,7 @@ _gaac_monitor_codex() {
             [[ "$monitor_running" != "true" ]] && break
 
             # Check for new content in current file
-            file_size=$(stat -c%s "$current_file" 2>/dev/null || stat -f%z "$current_file" 2>/dev/null || echo 0)
+            file_size=$(_get_file_size "$current_file")
             if [[ "$file_size" -gt "$last_size" ]]; then
                 # Read and display new content
                 [[ "$monitor_running" != "true" ]] && break
@@ -444,8 +464,8 @@ _gaac_monitor_codex() {
         done
     done
 
-    # Reset trap functions
-    unfunction TRAPINT TRAPTERM 2>/dev/null
+    # Reset trap handlers
+    trap - INT TERM
 }
 
 # Main gaac function
