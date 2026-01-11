@@ -122,10 +122,10 @@ _gaac_monitor_codex() {
             return
         fi
 
-        # Count Acceptance Criteria (rows with AC-N pattern, handles **AC-1** bold format)
+        # Count Acceptance Criteria (rows with AC# or AC-N pattern, handles **AC-1** and AC1 formats)
         # Note: grep -c returns exit code 1 when count is 0, so use || true to ignore
         local total_acs=$(sed -n '/### Acceptance Criteria/,/^---$/p' "$tracker_file" \
-            | grep -cE '^\|\s*\*{0,2}AC-[0-9]+' || true)
+            | grep -cE '^\|\s*\*{0,2}AC-?[0-9]+' || true)
         total_acs=${total_acs:-0}
 
         # Count Active Tasks (pending or in_progress status, case-insensitive, handles **status** bold)
@@ -141,9 +141,9 @@ _gaac_monitor_codex() {
         completed_table_rows=${completed_table_rows:-0}
         local completed_tasks=$((completed_table_rows > 2 ? completed_table_rows - 2 : 0))
 
-        # Count verified ACs (unique AC-N entries in Completed section, handles | AC-1 | format)
+        # Count verified ACs (unique AC entries in Completed section, handles | AC-1 | and | AC1 | formats)
         local completed_acs=$(sed -n '/### Completed and Verified/,/^###/p' "$tracker_file" \
-            | grep -oE '^\|\s*AC-[0-9]+' | sort -u | wc -l | tr -d ' ')
+            | grep -oE '^\|\s*AC-?[0-9]+' | sort -u | wc -l | tr -d ' ')
         completed_acs=${completed_acs:-0}
 
         # Count Deferred tasks (table rows minus header and separator)
