@@ -215,6 +215,18 @@ _gaac_monitor_codex() {
         echo "${modified}|${added}|${deleted}|${untracked}|${insertions}|${deletions}"
     }
 
+    # Split pipe-delimited string into array (bash/zsh compatible)
+    # Usage: _split_to_array "output_array_name" "value1|value2|value3"
+    _split_to_array() {
+        local -n _arr_ref="$1"
+        local input="$2"
+        if [[ -n "$ZSH_VERSION" ]]; then
+            IFS='|' read -rA _arr_ref <<< "$input"
+        else
+            IFS='|' read -ra _arr_ref <<< "$input"
+        fi
+    }
+
     # Draw the status bar at the top
     _draw_status_bar() {
         local session_dir="$1"
@@ -223,9 +235,9 @@ _gaac_monitor_codex() {
         local goal_tracker_file="$session_dir/goal-tracker.md"
         local term_width=$(tput cols)
 
-        # Parse state.md into array (bash/zsh compatible)
+        # Parse state.md
         local -a state_parts
-        IFS='|' read -ra state_parts <<< "$(_parse_state_md "$state_file")"
+        _split_to_array state_parts "$(_parse_state_md "$state_file")"
         local current_round="${state_parts[0]}"
         local max_iterations="${state_parts[1]}"
         local codex_model="${state_parts[2]}"
@@ -233,9 +245,9 @@ _gaac_monitor_codex() {
         local started_at="${state_parts[4]}"
         local plan_file="${state_parts[5]}"
 
-        # Parse goal-tracker.md into array
+        # Parse goal-tracker.md
         local -a goal_parts
-        IFS='|' read -ra goal_parts <<< "$(_parse_goal_tracker "$goal_tracker_file")"
+        _split_to_array goal_parts "$(_parse_goal_tracker "$goal_tracker_file")"
         local total_acs="${goal_parts[0]}"
         local completed_acs="${goal_parts[1]}"
         local active_tasks="${goal_parts[2]}"
@@ -244,9 +256,9 @@ _gaac_monitor_codex() {
         local open_issues="${goal_parts[5]}"
         local goal_summary="${goal_parts[6]}"
 
-        # Parse git status into array
+        # Parse git status
         local -a git_parts
-        IFS='|' read -ra git_parts <<< "$(_parse_git_status)"
+        _split_to_array git_parts "$(_parse_git_status)"
         local git_modified="${git_parts[0]}"
         local git_added="${git_parts[1]}"
         local git_deleted="${git_parts[2]}"
