@@ -131,10 +131,12 @@ _gaac_monitor_codex() {
             echo $((row_count > 2 ? row_count - 2 : 0))
         }
 
-        # Count Acceptance Criteria (rows with AC# or AC-N pattern, handles **AC-1** and AC1 formats)
+        # Count Acceptance Criteria (supports both table and list formats)
+        # Table format: | AC-1 | or | **AC-1** |
+        # List format: - **AC-1**: or - AC-1:
         local total_acs
         total_acs=$(sed -n '/### Acceptance Criteria/,/^---$/p' "$tracker_file" \
-            | grep -cE '^\|\s*\*{0,2}AC-?[0-9]+' || true)
+            | grep -cE '(^\|\s*\*{0,2}AC-?[0-9]+|^-\s*\*{0,2}AC-?[0-9]+)' || true)
         total_acs=${total_acs:-0}
 
         # Count Active Tasks (pending or in_progress status, case-insensitive, handles **status** bold)
