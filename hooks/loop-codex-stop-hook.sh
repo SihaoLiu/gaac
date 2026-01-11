@@ -320,8 +320,8 @@ if [[ ! "$CURRENT_ROUND" =~ ^[0-9]+$ ]]; then
     exit 0
 fi
 
-# max_iterations can be "inf" for infinite mode or a number
-if [[ "$MAX_ITERATIONS" != "inf" ]] && [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
+# max_iterations must be a number
+if [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
     MAX_ITERATIONS=42
 fi
 
@@ -442,8 +442,7 @@ fi
 
 NEXT_ROUND=$((CURRENT_ROUND + 1))
 
-# Skip max iteration check if in infinite mode
-if [[ "$MAX_ITERATIONS" != "inf" ]] && [[ $NEXT_ROUND -gt $MAX_ITERATIONS ]]; then
+if [[ $NEXT_ROUND -gt $MAX_ITERATIONS ]]; then
     echo "loop-with-codex-review did not complete, but reached max iterations ($MAX_ITERATIONS). Exiting." >&2
     rm -f "$STATE_FILE"
     exit 0
@@ -568,6 +567,11 @@ The project's \`.gaac-loop.local/$(basename "$LOOP_DIR")/\` directory contains t
 - Round output summaries: \`round-N-summary.md\`
 - Round review prompts: \`round-N-review-prompt.md\`
 - Round review results: \`round-N-review-result.md\`
+
+**How to Access Historical Files**: Read the historical review results and summaries using file paths like:
+- \`@.gaac-loop.local/$(basename "$LOOP_DIR")/round-$((CURRENT_ROUND - 1))-review-result.md\` (previous round)
+- \`@.gaac-loop.local/$(basename "$LOOP_DIR")/round-$((CURRENT_ROUND - 2))-review-result.md\` (2 rounds ago)
+- \`@.gaac-loop.local/$(basename "$LOOP_DIR")/round-$((CURRENT_ROUND - 1))-summary.md\` (previous summary)
 
 **Your Task**: Review the historical review results, especially the **last 5 rounds** of development progress and review outcomes, to determine if the development has stalled.
 
@@ -780,10 +784,12 @@ REVIEW_CONTENT=$(cat "$REVIEW_RESULT_FILE")
 
 # Check if the last non-empty line is exactly "COMPLETE" or "STOP"
 # The word must be on its own line to avoid false positives like "CANNOT COMPLETE"
-LAST_LINE=$(echo "$REVIEW_CONTENT" | grep -v '^[[:space:]]*$' | tail -1 | tr -d '[:space:]')
+# Use strict matching: only whitespace before/after the word is allowed
+LAST_LINE=$(echo "$REVIEW_CONTENT" | grep -v '^[[:space:]]*$' | tail -1)
+LAST_LINE_TRIMMED=$(echo "$LAST_LINE" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
 # Handle COMPLETE - loop finished successfully
-if [[ "$LAST_LINE" == "COMPLETE" ]]; then
+if [[ "$LAST_LINE_TRIMMED" == "COMPLETE" ]]; then
     if [[ "$FULL_ALIGNMENT_CHECK" == "true" ]]; then
         echo "Codex review passed. All goals achieved. Loop complete!" >&2
     else
@@ -794,7 +800,7 @@ if [[ "$LAST_LINE" == "COMPLETE" ]]; then
 fi
 
 # Handle STOP - circuit breaker triggered
-if [[ "$LAST_LINE" == "STOP" ]]; then
+if [[ "$LAST_LINE_TRIMMED" == "STOP" ]]; then
     echo "" >&2
     echo "========================================" >&2
     if [[ "$FULL_ALIGNMENT_CHECK" == "true" ]]; then
@@ -916,11 +922,7 @@ Codex will review your request and update the Goal Tracker if justified.
 EOF
 
 # Build system message
-if [[ "$MAX_ITERATIONS" == "inf" ]]; then
-    SYSTEM_MSG="Loop: Round $NEXT_ROUND (infinite mode) - Codex found issues to address"
-else
-    SYSTEM_MSG="Loop: Round $NEXT_ROUND/$MAX_ITERATIONS - Codex found issues to address"
-fi
+SYSTEM_MSG="Loop: Round $NEXT_ROUND/$MAX_ITERATIONS - Codex found issues to address"
 
 # Block exit and send review feedback
 jq -n \

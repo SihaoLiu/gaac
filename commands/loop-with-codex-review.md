@@ -33,7 +33,7 @@ This loop uses a **Goal Tracker** to prevent goal drift across iterations:
 1. **Acceptance Criteria**: Each task maps to a specific AC - nothing can be "forgotten"
 2. **Plan Evolution Log**: If you discover the plan needs changes, document the change with justification
 3. **Explicit Deferrals**: Deferred tasks require strong justification and impact analysis
-4. **Full Alignment Checks**: Every 5 rounds, Codex conducts a comprehensive goal alignment audit
+4. **Full Alignment Checks**: At rounds 4, 9, 14, etc. (after every 4 rounds of work), Codex conducts a comprehensive goal alignment audit
 
 ### How to Use
 1. **Round 0**: Initialize the Goal Tracker with Ultimate Goal and Acceptance Criteria
