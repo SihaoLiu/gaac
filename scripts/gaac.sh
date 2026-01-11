@@ -122,41 +122,41 @@ _gaac_monitor_codex() {
             return
         fi
 
-        # Helper: count table rows in a section (excludes headers starting with | *Header or |-)
-        _count_section_rows() {
-            local section_start="$1"
-            local section_end="$2"
-            local extra_filter="${3:-}"
-            sed -n "/${section_start}/,/${section_end}/p" "$tracker_file" \
-                | grep -E '^\|[^|]+\|' \
-                | grep -v '^\| *[A-Za-z]* *|' \
-                | grep -v '^\|-' \
-                ${extra_filter:+| grep -E "$extra_filter"} \
-                | wc -l | tr -d ' '
-        }
+        # Count Acceptance Criteria (rows with AC-N pattern, handles **AC-1** bold format)
+        # Note: grep -c returns exit code 1 when count is 0, so use || true to ignore
+        local total_acs=$(sed -n '/### Acceptance Criteria/,/^---$/p' "$tracker_file" \
+            | grep -cE '^\|\s*\*{0,2}AC-[0-9]+' || true)
+        total_acs=${total_acs:-0}
 
-        # Count Acceptance Criteria (rows starting with | AC in the AC section)
-        local total_acs=$(sed -n '/### Acceptance Criteria/,/^---$/p' "$tracker_file" | grep -cE '^\|\s*AC' || echo 0)
+        # Count Active Tasks (pending or in_progress status, case-insensitive, handles **status** bold)
+        # First strip markdown bold, then check for status
+        local active_tasks=$(sed -n '/#### Active Tasks/,/^###/p' "$tracker_file" \
+            | sed 's/\*\*//g' \
+            | grep -ciE '^\|[^|]+\|[^|]+\|[^|]*(pending|in_progress)[^|]*\|' || true)
+        active_tasks=${active_tasks:-0}
 
-        # Count Active Tasks (pending + in_progress status)
-        local active_tasks=$(sed -n '/#### Active Tasks/,/^###/p' "$tracker_file" | grep -cE '^\|[^|]+\|[^|]+\|[^|]*(pending|in_progress)[^|]*\|' || echo 0)
+        # Count Completed tasks (table rows in Completed section, minus 2 for header and separator)
+        local completed_table_rows=$(sed -n '/### Completed and Verified/,/^###/p' "$tracker_file" \
+            | grep -cE '^\|' || true)
+        completed_table_rows=${completed_table_rows:-0}
+        local completed_tasks=$((completed_table_rows > 2 ? completed_table_rows - 2 : 0))
 
-        # Count Completed tasks (table rows in Completed section, excluding header)
-        local completed_tasks=$(_count_section_rows '### Completed and Verified' '^###')
-        completed_tasks=${completed_tasks:-0}
-
-        # Count verified ACs (unique AC entries in Completed section)
+        # Count verified ACs (unique AC-N entries in Completed section, handles | AC-1 | format)
         local completed_acs=$(sed -n '/### Completed and Verified/,/^###/p' "$tracker_file" \
-            | grep -oE '^\|\s*AC[0-9]+' | sort -u | wc -l | tr -d ' ')
+            | grep -oE '^\|\s*AC-[0-9]+' | sort -u | wc -l | tr -d ' ')
         completed_acs=${completed_acs:-0}
 
-        # Count Deferred tasks
-        local deferred_tasks=$(_count_section_rows '### Explicitly Deferred' '^###')
-        deferred_tasks=${deferred_tasks:-0}
+        # Count Deferred tasks (table rows minus header and separator)
+        local deferred_table_rows=$(sed -n '/### Explicitly Deferred/,/^###/p' "$tracker_file" \
+            | grep -cE '^\|' || true)
+        deferred_table_rows=${deferred_table_rows:-0}
+        local deferred_tasks=$((deferred_table_rows > 2 ? deferred_table_rows - 2 : 0))
 
-        # Count Open Issues
-        local open_issues=$(_count_section_rows '### Open Issues' '^$')
-        open_issues=${open_issues:-0}
+        # Count Open Issues (table rows minus header and separator)
+        local issues_table_rows=$(sed -n '/### Open Issues/,/^###/p' "$tracker_file" \
+            | grep -cE '^\|' || true)
+        issues_table_rows=${issues_table_rows:-0}
+        local open_issues=$((issues_table_rows > 2 ? issues_table_rows - 2 : 0))
 
         # Extract Ultimate Goal summary (first content line after heading)
         local goal_summary=$(sed -n '/### Ultimate Goal/,/^###/p' "$tracker_file" \
