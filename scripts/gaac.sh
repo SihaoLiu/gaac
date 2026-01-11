@@ -138,10 +138,11 @@ _gaac_monitor_codex() {
         total_acs=${total_acs:-0}
 
         # Count Active Tasks (pending or in_progress status, case-insensitive, handles **status** bold)
+        # Matches: pending, in_progress (underscore), IN PROGRESS (space), TODO
         local active_tasks
         active_tasks=$(sed -n '/#### Active Tasks/,/^###/p' "$tracker_file" \
             | sed 's/\*\*//g' \
-            | grep -ciE '^\|[^|]+\|[^|]+\|[^|]*(pending|in_progress)[^|]*\|' || true)
+            | grep -ciE '^\|[^|]+\|[^|]+\|[^|]*(pending|in[_ ]progress|todo)[^|]*\|' || true)
         active_tasks=${active_tasks:-0}
 
         # Count Completed tasks
