@@ -478,10 +478,33 @@ Critical blockers: [list if any]
 
 ## Part 3: $GOAL_TRACKER_UPDATE_SECTION
 
-## Part 4: Output Requirements
+## Part 4: Progress Stagnation Check (MANDATORY for Full Alignment Rounds)
+
+To implement the original plan at @$PLAN_FILE, we have completed **$((CURRENT_ROUND + 1)) iterations** (Round 0 to Round $CURRENT_ROUND).
+
+The project's \`.gaac-loop.local/$(basename "$LOOP_DIR")/\` directory contains the history of each round's iteration:
+- Round input prompts: \`round-N-prompt.md\`
+- Round output summaries: \`round-N-summary.md\`
+- Round review prompts: \`round-N-review-prompt.md\`
+- Round review results: \`round-N-review-result.md\`
+
+**Your Task**: Review the historical review results, especially the **last 5 rounds** of development progress and review outcomes, to determine if the development has stalled.
+
+**Signs of Stagnation** (circuit breaker triggers):
+- Same issues appearing repeatedly across multiple rounds
+- No meaningful progress on Acceptance Criteria over several rounds
+- Claude making the same mistakes repeatedly
+- Circular discussions without resolution
+- No new code changes despite continued iterations
+- Codex giving similar feedback repeatedly without Claude addressing it
+
+**If development is stagnating**, write **STOP** (as a single word on its own line) as the last line of your review output @$REVIEW_RESULT_FILE instead of COMPLETE.
+
+## Part 5: Output Requirements
 
 - If issues found OR any AC is NOT MET without valid deferral, write your findings to @$REVIEW_RESULT_FILE
 - Include specific action items for Claude to address
+- **If development is stagnating** (see Part 4), write "STOP" as the last line
 - If ALL ACs are MET or validly DEFERRED, and implementation is correct, write "COMPLETE" as the last line
 EOF
 
@@ -674,12 +697,47 @@ fi
 # Read the review result
 REVIEW_CONTENT=$(cat "$REVIEW_RESULT_FILE")
 
-# Check if the last non-empty line is exactly "COMPLETE"
+# Check if the last non-empty line is exactly "COMPLETE" or "STOP"
+# The word must be on its own line to avoid false positives like "CANNOT COMPLETE"
 LAST_LINE=$(echo "$REVIEW_CONTENT" | grep -v '^[[:space:]]*$' | tail -1 | tr -d '[:space:]')
 
+# Handle COMPLETE - loop finished successfully
 if [[ "$LAST_LINE" == "COMPLETE" ]]; then
-    # Review passed - allow exit
-    echo "Codex review passed. Loop complete!" >&2
+    if [[ "$FULL_ALIGNMENT_CHECK" == "true" ]]; then
+        echo "Codex review passed. All goals achieved. Loop complete!" >&2
+    else
+        echo "Codex review passed. Loop complete!" >&2
+    fi
+    rm -f "$STATE_FILE"
+    exit 0
+fi
+
+# Handle STOP - circuit breaker triggered
+if [[ "$LAST_LINE" == "STOP" ]]; then
+    echo "" >&2
+    echo "========================================" >&2
+    if [[ "$FULL_ALIGNMENT_CHECK" == "true" ]]; then
+        echo "CIRCUIT BREAKER TRIGGERED" >&2
+        echo "========================================" >&2
+        echo "Codex detected development stagnation during Full Alignment Check (Round $CURRENT_ROUND)." >&2
+        echo "The loop has been stopped to prevent further unproductive iterations." >&2
+        echo "" >&2
+        echo "Review the historical round files in .gaac-loop.local/$(basename "$LOOP_DIR")/ to understand what went wrong." >&2
+        echo "Consider:" >&2
+        echo "  - Revisiting the original plan for clarity" >&2
+        echo "  - Breaking down the task into smaller pieces" >&2
+        echo "  - Manually addressing the blocking issues" >&2
+    else
+        echo "UNEXPECTED CIRCUIT BREAKER" >&2
+        echo "========================================" >&2
+        echo "Codex output STOP during a non-alignment round (Round $CURRENT_ROUND)." >&2
+        echo "This is unusual - STOP is normally only expected during Full Alignment Checks (every 5 rounds)." >&2
+        echo "Honoring the STOP request and terminating the loop." >&2
+        echo "" >&2
+        echo "Review the review result to understand why Codex requested an early stop:" >&2
+        echo "  $REVIEW_RESULT_FILE" >&2
+    fi
+    echo "========================================" >&2
     rm -f "$STATE_FILE"
     exit 0
 fi
