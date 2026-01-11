@@ -218,17 +218,22 @@ _gaac_monitor_codex() {
     # Split pipe-delimited string into array (bash/zsh compatible)
     # Usage: _split_to_array "output_array_name" "value1|value2|value3"
     _split_to_array() {
-        local -n _arr_ref="$1"
+        local arr_name="$1"
         local input="$2"
         if [[ -n "$ZSH_VERSION" ]]; then
-            IFS='|' read -rA _arr_ref <<< "$input"
+            # zsh: use parameter expansion to split on |
+            eval "$arr_name=(\"\${(@s:|:)input}\")"
         else
-            IFS='|' read -ra _arr_ref <<< "$input"
+            # bash: use read -ra
+            eval "IFS='|' read -ra $arr_name <<< \"\$input\""
         fi
     }
 
     # Draw the status bar at the top
     _draw_status_bar() {
+        # Enable 0-indexed arrays in zsh for bash compatibility
+        [[ -n "$ZSH_VERSION" ]] && setopt localoptions ksharrays
+
         local session_dir="$1"
         local log_file="$2"
         local state_file="$session_dir/state.md"
