@@ -16,7 +16,7 @@ set -euo pipefail
 
 # Default Codex model and reasoning effort
 DEFAULT_CODEX_MODEL="gpt-5.2-codex"
-DEFAULT_CODEX_EFFORT="xhigh"
+DEFAULT_CODEX_EFFORT="high"
 DEFAULT_CODEX_TIMEOUT=5400
 DEFAULT_MAX_ITERATIONS=42
 
@@ -44,7 +44,7 @@ ARGUMENTS:
 OPTIONS:
   --max <N>            Maximum iterations before auto-stop (default: 42)
   --codex-model <MODEL:EFFORT>
-                       Codex model and reasoning effort (default: gpt-5.2-codex:xhigh)
+                       Codex model and reasoning effort (default: gpt-5.2-codex:high)
   --codex-timeout <SECONDS>
                        Timeout for each Codex review in seconds (default: 5400)
   -h, --help           Show this help message

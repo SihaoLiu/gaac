@@ -78,12 +78,12 @@ Model configuration is read from `gaac.md`. The `--role` parameter determines wh
 
 | Role | gaac.md Key | Default | Purpose |
 |------|-------------|---------|---------|
-| `analyzer` | `gaac.models.analyzer` | `codex:gpt-5.2-codex:xhigh` | Synthesis and analysis |
+| `analyzer` | `gaac.models.analyzer` | `codex:gpt-5.2-codex:high` | Synthesis and analysis |
 | `analyzer` (fallback) | `gaac.models.analyzer_fallback` | `claude:opus` | Fallback for analyzer |
 | `checker` | `gaac.models.checker` | `claude:opus` | Critical checking |
 | `proposer` | `gaac.models.proposer` | `claude:sonnet` | Creative proposals |
 | `proposer_secondary` | `gaac.models.proposer_secondary` | `gemini:gemini-3-pro-preview` | Secondary proposer (Gemini) |
-| `code_reviewer` | `gaac.models.code_reviewer` | `codex:gpt-5.2-codex:xhigh` | Independent code review |
+| `code_reviewer` | `gaac.models.code_reviewer` | `codex:gpt-5.2-codex:high` | Independent code review |
 | `code_reviewer` (fallback) | `gaac.models.code_reviewer_fallback` | `claude:opus` | Fallback for code review |
 
 **Usage:**
@@ -94,7 +94,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
     --output-file ./output.md
 ```
 
-**Model Config Format:** `tool:model:reasoning` (e.g., `codex:gpt-5.2-codex:xhigh`)
+**Model Config Format:** `tool:model:reasoning` (e.g., `codex:gpt-5.2-codex:high`)
 
 ## Prompts
 
@@ -110,7 +110,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \
 ```bash
 codex exec \
     -m gpt-5.2-codex \
-    -c model_reasoning_effort=xhigh \
+    -c model_reasoning_effort=high \
     --enable web_search_request \
     -s read-only \
     -o "$OUTPUT_FILE" \
@@ -119,7 +119,7 @@ codex exec \
 ```
 
 **Features:**
-- Deep reasoning (`xhigh` effort)
+- Deep reasoning (`high` effort)
 - Read-only sandbox
 - Web search capability
 - Output to file

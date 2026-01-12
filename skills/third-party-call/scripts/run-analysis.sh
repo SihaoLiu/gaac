@@ -4,7 +4,7 @@
 # Used for design analysis, synthesis, and independent review
 #
 # Model configuration is read from gaac.md:
-#   gaac.models.analyzer: codex:gpt-5.2-codex:xhigh
+#   gaac.models.analyzer: codex:gpt-5.2-codex:high
 #   gaac.models.analyzer_fallback: claude:opus
 #
 
@@ -63,7 +63,7 @@ done
 # Read Model Configuration from gaac.md
 # ========================================
 
-# Model config format: tool:model:reasoning (e.g., codex:gpt-5.2-codex:xhigh)
+# Model config format: tool:model:reasoning (e.g., codex:gpt-5.2-codex:high)
 get_model_config() {
     local role="$1"
     local fallback="$2"
@@ -81,7 +81,7 @@ get_model_config() {
 # Get model configuration based on role
 case "$MODEL_ROLE" in
     analyzer)
-        MODEL_CONFIG=$(get_model_config "analyzer" "codex:gpt-5.2-codex:xhigh")
+        MODEL_CONFIG=$(get_model_config "analyzer" "codex:gpt-5.2-codex:high")
         MODEL_FALLBACK=$(get_model_config "analyzer_fallback" "claude:opus")
         ;;
     checker)
@@ -97,11 +97,11 @@ case "$MODEL_ROLE" in
         MODEL_FALLBACK=""  # Secondary proposer, no fallback
         ;;
     code_reviewer)
-        MODEL_CONFIG=$(get_model_config "code_reviewer" "codex:gpt-5.2-codex:xhigh")
+        MODEL_CONFIG=$(get_model_config "code_reviewer" "codex:gpt-5.2-codex:high")
         MODEL_FALLBACK=$(get_model_config "code_reviewer_fallback" "claude:opus")
         ;;
     *)
-        MODEL_CONFIG="codex:gpt-5.2-codex:xhigh"
+        MODEL_CONFIG="codex:gpt-5.2-codex:high"
         MODEL_FALLBACK="claude:opus"
         ;;
 esac

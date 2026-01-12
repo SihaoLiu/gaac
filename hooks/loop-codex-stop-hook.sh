@@ -19,7 +19,7 @@ set -euo pipefail
 # ========================================
 
 DEFAULT_CODEX_MODEL="gpt-5.2-codex"
-DEFAULT_CODEX_EFFORT="xhigh"
+DEFAULT_CODEX_EFFORT="high"
 DEFAULT_CODEX_TIMEOUT=5400
 
 # ========================================

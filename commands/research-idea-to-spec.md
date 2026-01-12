@@ -123,7 +123,7 @@ Implement multi-perspective analysis using a formal proposer-checker-analyzer de
 - `gaac.models.proposer`: claude:sonnet (primary)
 - `gaac.models.proposer_secondary`: gemini:gemini-3-pro-preview (optional)
 - `gaac.models.checker`: claude:opus (single checker)
-- `gaac.models.analyzer`: codex:gpt-5.2-codex:xhigh → claude:opus (fallback)
+- `gaac.models.analyzer`: codex:gpt-5.2-codex:high → claude:opus (fallback)
 
 ### 3.1 Proposer Stage (Parallel)
 
@@ -171,7 +171,7 @@ The checker will:
 
 ### 3.3 Analyzer Stage (Independent Synthesis)
 
-Run independent analyzer (Codex xhigh preferred, Claude Opus fallback) to synthesize all inputs:
+Run independent analyzer (Codex high preferred, Claude Opus fallback) to synthesize all inputs:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/third-party-call/scripts/run-analysis.sh" \

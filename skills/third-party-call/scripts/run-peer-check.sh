@@ -136,7 +136,7 @@ if [ "$TOOL" = "codex" ]; then
     # Run Codex with portable timeout
     run_with_timeout "$TIMEOUT" codex exec \
         -m gpt-5.2-codex \
-        -c model_reasoning_effort=xhigh \
+        -c model_reasoning_effort=high \
         -s read-only \
         -o "$OUTPUT_FILE" \
         -C "$PROJECT_ROOT" \

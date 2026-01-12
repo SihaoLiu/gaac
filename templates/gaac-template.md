@@ -30,12 +30,12 @@ gaac.default_branch: main
 gaac.merge_strategy: squash
 
 # Model Configuration (for three-agent debate and code review)
-gaac.models.code_reviewer: codex:gpt-5.2-codex:xhigh
+gaac.models.code_reviewer: codex:gpt-5.2-codex:high
 gaac.models.code_reviewer_fallback: claude:opus
 gaac.models.proposer: claude:sonnet
 gaac.models.proposer_secondary: gemini:gemini-3-pro-preview
 gaac.models.checker: claude:opus
-gaac.models.analyzer: codex:gpt-5.2-codex:xhigh
+gaac.models.analyzer: codex:gpt-5.2-codex:high
 gaac.models.analyzer_fallback: claude:opus
 ```
 
