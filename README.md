@@ -1,6 +1,6 @@
 # GAAC - GitHub as a Context
 
-**Current Version: 1.1.32**
+**Current Version: 1.1.33**
 
 A Claude Code plugin that implements the "GitHub as a Context" methodology for AI-native software development. GAAC uses GitHub's native features (Issues, PRs, Projects) as persistent context storage for LLM coding agents, providing a structured workflow from research to implementation.
 
@@ -178,6 +178,40 @@ Edit `.claude/rules/gaac.md` and configure the following:
 - L1/L2 tag system for your project
 - Documentation paths
 - Build and test commands
+
+### Module Rules (Virtual Code Ownership)
+
+GAAC supports per-module acceptance standards through `MODULE_RULES.md` files. These act as "virtual code owners" that enforce module-specific principles during Codex review.
+
+**How It Works**:
+
+1. Place a `MODULE_RULES.md` file in any directory to define rules for that module
+2. During Codex review, rules are loaded hierarchically from modified files up to project root
+3. Codex reviews changes against these rules with a "selfish module owner" stance
+
+**Example `MODULE_RULES.md`**:
+
+```markdown
+# Core Principles
+
+- This module handles authentication only - no authorization logic
+- All auth methods must be stateless and support token refresh
+- External dependencies must be abstracted behind interfaces
+
+# Acceptance Standards
+
+- Changes must not break existing auth flows
+- New auth providers require documentation update
+- Test coverage must remain above 80%
+```
+
+**Placement**:
+
+- `src/auth/MODULE_RULES.md` - Rules specific to auth module
+- `src/MODULE_RULES.md` - Rules for all src modules
+- `MODULE_RULES.md` - Project-wide rules
+
+Rules are applied hierarchically: a file in `src/auth/login.js` is reviewed against rules from `src/auth/`, then `src/`, then project root.
 
 ## Workflow Overview
 

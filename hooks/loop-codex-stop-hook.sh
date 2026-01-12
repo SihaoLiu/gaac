@@ -471,6 +471,17 @@ REVIEW_RESULT_FILE="$LOOP_DIR/round-${CURRENT_ROUND}-review-result.md"
 
 SUMMARY_CONTENT=$(cat "$SUMMARY_FILE")
 
+# ========================================
+# Load Module Rules for Changed Files
+# ========================================
+# Module rules define per-module acceptance standards that act as "virtual code owners"
+# These rules are loaded hierarchically and injected into the review prompt
+
+MODULE_RULES_SECTION=""
+if command -v git &>/dev/null && git -C "$PROJECT_ROOT" rev-parse --git-dir &>/dev/null 2>&1; then
+    MODULE_RULES_SECTION=$(build_module_rules_prompt_section "$PROJECT_ROOT" 2>/dev/null || echo "")
+fi
+
 # Shared prompt section for Goal Tracker Update Requests (used in both Full Alignment and Regular reviews)
 GOAL_TRACKER_UPDATE_SECTION="## Goal Tracker Update Requests (YOUR RESPONSIBILITY)
 
@@ -555,6 +566,8 @@ Critical blockers: [list if any]
 - Verify Claude's claims match reality
 - Identify any gaps, bugs, or incomplete work
 - Reference @$DOCS_PATH for design documents
+
+$MODULE_RULES_SECTION
 
 ## Part 3: $GOAL_TRACKER_UPDATE_SECTION
 
@@ -643,6 +656,8 @@ Include a brief Goal Alignment Summary in your review:
 \`\`\`
 ACs: X/Y addressed | Forgotten items: N | Unjustified deferrals: N
 \`\`\`
+
+$MODULE_RULES_SECTION
 
 ## Part 3: $GOAL_TRACKER_UPDATE_SECTION
 
