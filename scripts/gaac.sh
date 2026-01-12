@@ -321,13 +321,12 @@ _gaac_monitor_codex() {
         printf "${cyan}Session:${reset}  ${session_basename}    ${cyan}Started:${reset} ${start_display}\n"
         printf "${green}Round:${reset}    ${bold}${current_round}${reset} / ${max_iterations}    ${yellow}Model:${reset} ${codex_model} (${codex_effort})\n"
 
-        # Goal tracker progress line (color based on completion status)
+        # Progress line (color based on completion status)
         local ac_color="${green}"
         [[ "$completed_acs" -lt "$total_acs" ]] && ac_color="${yellow}"
         local issue_color="${dim}"
         [[ "$open_issues" -gt 0 ]] && issue_color="${red}"
 
-        printf "${magenta}Goal:${reset}     ${goal_display}\n"
         printf "${magenta}Progress:${reset} ${ac_color}ACs: ${completed_acs}/${total_acs}${reset}  ${cyan}Tasks: ${active_tasks} active, ${completed_tasks} done${reset}"
         [[ "$deferred_tasks" -gt 0 ]] && printf "  ${yellow}${deferred_tasks} deferred${reset}"
         [[ "$open_issues" -gt 0 ]] && printf "  ${issue_color}Issues: ${open_issues}${reset}"
@@ -347,6 +346,7 @@ _gaac_monitor_codex() {
         fi
         printf "\n"
 
+        printf "${magenta}Goal:${reset}     ${goal_display}\n"
         printf "${cyan}Plan:${reset}     ${plan_display}\n"
         printf "${cyan}Log:${reset}      ${log_file}\n"
         printf "%.s─" $(seq 1 $term_width)

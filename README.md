@@ -1,6 +1,6 @@
 # GAAC - GitHub as a Context
 
-**Current Version: 1.1.31**
+**Current Version: 1.1.32**
 
 A Claude Code plugin that implements the "GitHub as a Context" methodology for AI-native software development. GAAC uses GitHub's native features (Issues, PRs, Projects) as persistent context storage for LLM coding agents, providing a structured workflow from research to implementation.
 
@@ -76,11 +76,49 @@ cat .gaac-loop.local/*/round-*-summary.md | tail -50
 cat .gaac-loop.local/*/round-*-review-result.md | tail -50
 ```
 
-### Step 4: Cancel If Needed
+**Real-time Monitoring Dashboard** (Recommended):
+
+First, source the GAAC shell utilities in your `.bashrc` or `.zshrc`:
 
 ```bash
-/gaac:cancel-loop-codex-review
+# Auto-discover GAAC plugin location (marketplace or cache)
+GAAC_PLUGIN_ROOT=$(find ~/.claude/plugins/marketplaces ~/.claude/plugins/cache -type d -name "gaac*" 2>/dev/null | head -1)
+if [[ -n "$GAAC_PLUGIN_ROOT" && -f "$GAAC_PLUGIN_ROOT/scripts/gaac.sh" ]]; then
+    source "$GAAC_PLUGIN_ROOT/scripts/gaac.sh"
+fi
 ```
+
+Then run the monitor in your project directory:
+
+```bash
+gaac monitor codex
+```
+
+This provides a real-time dashboard showing:
+- Session info and round progress
+- Progress summary (ACs, active/completed tasks, issues)
+- Git status with file changes and line diffs
+- Goal summary, plan file path, and live log output
+
+![GAAC Loop Monitor](scripts/monitor-example.png)
+
+### Step 4: Pause, Resume, or Cancel
+
+**The loop is fully interruptible** - you can exit Claude Code at any time and resume later:
+
+- **Loop state**: Controlled solely by the presence of `.gaac-loop.local/*/state.md`
+- **Resume**: Simply restart Claude Code in the same directory - the loop continues automatically
+- **Cancel**: Remove the state file to stop the loop permanently
+
+```bash
+# Cancel the active loop
+/gaac:cancel-loop-codex-review
+
+# Or manually remove state file
+rm .gaac-loop.local/*/state.md
+```
+
+The loop directory with all summaries and review results is preserved for reference.
 
 ### Prerequisites
 
