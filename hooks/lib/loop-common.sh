@@ -201,6 +201,177 @@ command_modifies_file() {
     return 1
 }
 
+# ========================================
+# Module Rules Loading Functions
+# ========================================
+
+# Module rules file name
+MODULE_RULES_FILENAME="MODULE_RULES.md"
+
+# Find all MODULE_RULES.md files from a file's directory up to project root
+# Usage: find_module_rules_for_file "/path/to/file.js" "/project/root"
+# Outputs newline-separated list of rule file paths (from most specific to root)
+find_module_rules_for_file() {
+    local file_path="$1"
+    local project_root="$2"
+
+    # Get the directory containing the file
+    local current_dir
+    if [[ -f "$file_path" ]]; then
+        current_dir=$(dirname "$file_path")
+    else
+        current_dir="$file_path"
+    fi
+
+    # Normalize paths to absolute
+    current_dir=$(cd "$current_dir" 2>/dev/null && pwd) || return
+    project_root=$(cd "$project_root" 2>/dev/null && pwd) || return
+
+    local rules_files=""
+
+    # Walk up from file's directory to project root
+    while [[ "$current_dir" == "$project_root"* ]]; do
+        local rules_file="$current_dir/$MODULE_RULES_FILENAME"
+        if [[ -f "$rules_file" ]]; then
+            if [[ -n "$rules_files" ]]; then
+                rules_files="$rules_files"$'\n'"$rules_file"
+            else
+                rules_files="$rules_file"
+            fi
+        fi
+
+        # Move to parent directory
+        local parent_dir
+        parent_dir=$(dirname "$current_dir")
+
+        # Stop if we've reached the project root or can't go higher
+        if [[ "$current_dir" == "$project_root" ]] || [[ "$parent_dir" == "$current_dir" ]]; then
+            break
+        fi
+
+        current_dir="$parent_dir"
+    done
+
+    echo "$rules_files"
+}
+
+# Collect all unique MODULE_RULES.md files for files changed according to git status
+# Usage: collect_module_rules_for_git_changes "/project/root"
+# Outputs newline-separated list of unique rule file paths
+collect_module_rules_for_git_changes() {
+    local project_root="$1"
+
+    # Get list of changed files from git status
+    local git_status
+    git_status=$(cd "$project_root" && git status --porcelain 2>/dev/null) || return
+
+    local all_rules=""
+    local seen_rules=""
+
+    while IFS= read -r line; do
+        # Skip empty lines
+        [[ -z "$line" ]] && continue
+
+        # Extract filename (skip first 3 chars: "XY ")
+        local filename="${line#???}"
+
+        # Handle renames: "old -> new" format
+        case "$filename" in
+            *" -> "*) filename="${filename##* -> }" ;;
+        esac
+
+        # Skip deleted files
+        [[ ! -e "$project_root/$filename" ]] && continue
+
+        # Find module rules for this file
+        local rules
+        rules=$(find_module_rules_for_file "$project_root/$filename" "$project_root")
+
+        # Add unique rules to the collection
+        while IFS= read -r rule_file; do
+            [[ -z "$rule_file" ]] && continue
+
+            # Check if already seen (simple dedup)
+            if [[ "$seen_rules" != *"$rule_file"* ]]; then
+                seen_rules="$seen_rules:$rule_file"
+                if [[ -n "$all_rules" ]]; then
+                    all_rules="$all_rules"$'\n'"$rule_file"
+                else
+                    all_rules="$rule_file"
+                fi
+            fi
+        done <<< "$rules"
+    done <<< "$git_status"
+
+    echo "$all_rules"
+}
+
+# Build module rules section for Codex review prompt
+# Usage: build_module_rules_prompt_section "/project/root"
+# Outputs formatted markdown section with all relevant module rules
+build_module_rules_prompt_section() {
+    local project_root="$1"
+
+    # Collect all relevant module rules
+    local rules_files
+    rules_files=$(collect_module_rules_for_git_changes "$project_root")
+
+    # If no rules found, return empty
+    if [[ -z "$rules_files" ]]; then
+        return
+    fi
+
+    # Count number of rules files
+    local rules_count
+    rules_count=$(echo "$rules_files" | grep -c '^' || echo "0")
+
+    # Build the prompt section
+    cat << 'RULES_HEADER'
+## Module Rules (Per-Module Code Ownership Standards)
+
+**CRITICAL**: The following module-specific rules define the acceptance standards for code changes.
+As a reviewer, you must adopt a **"selfish module owner"** stance for each module:
+
+- You are **extremely unwilling** to accept changes that violate a module's core principles
+- You are **extremely unwilling** to accept changes that increase a module's conceptual complexity
+- You are **extremely unwilling** to accept changes that harm a module's long-term maintainability
+- Only **exceptionally strong justification** can override these concerns
+
+For each modified file, the relevant module rules apply hierarchically (from most specific directory to root).
+
+RULES_HEADER
+
+    echo "### Applicable Module Rules ($rules_count rule file(s) found)"
+    echo ""
+
+    # Include each rules file
+    while IFS= read -r rule_file; do
+        [[ -z "$rule_file" ]] && continue
+
+        # Get relative path from project root
+        local rel_path="${rule_file#$project_root/}"
+
+        echo "#### Rules from \`$rel_path\`"
+        echo ""
+        echo "\`\`\`markdown"
+        cat "$rule_file"
+        echo "\`\`\`"
+        echo ""
+    done <<< "$rules_files"
+
+    cat << 'RULES_FOOTER'
+### Review Instructions for Module Rules
+
+When reviewing changes, for each modified module:
+1. **Identify** which MODULE_RULES.md files apply to the changed files
+2. **Verify** the changes comply with each applicable rule
+3. **Flag violations** as high-priority issues requiring immediate attention
+4. **Require justification** for any rule exceptions (document in your review)
+5. **Be skeptical** of changes that "temporarily" violate rules - temporary often becomes permanent
+
+RULES_FOOTER
+}
+
 # Standard message for blocking goal-tracker modifications after Round 0
 # Usage: goal_tracker_blocked_message "$current_round" "$summary_file_path"
 goal_tracker_blocked_message() {
