@@ -1,5 +1,2 @@
-# GAAC - GitHub as a Context
-
-**Current Version: 1.1.32**
-
-The entire GAAC repo has been deprecated, please check [humanize](https://github.com/humania-org/humanize) for latest
+# GAAC(GitHub as a Context) moved to [Humanize](https://github.com/humania-org/humanize)
+**Last Version: 1.1.32**
